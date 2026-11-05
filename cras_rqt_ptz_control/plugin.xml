@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!--
+SPDX-License-Identifier: BSD-3-Clause
+SPDX-FileCopyrightText: Czech Technical University in Prague
+-->
+<library path="src">
+  <class name="PtzControl" type="cras_rqt_ptz_control.ptz_control.PtzControl" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      A Python GUI plugin to control a PTZ gimbal-camera with relative motions and velocities.
+    </description>
+    <qtgui>
+      <group>
+        <label>Robot Tools</label>
+        <icon type="theme">folder</icon>
+        <statustip>Plugins related to robot tools.</statustip>
+      </group>
+      <label>PTZ Control</label>
+      <icon type="theme">input-gaming</icon>
+      <statustip>A Python GUI plugin for steering a PTZ gimbal-camera by tapping or holding the buttons.</statustip>
+    </qtgui>
+  </class>
+</library>
