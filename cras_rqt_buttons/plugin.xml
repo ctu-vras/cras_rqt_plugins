@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!--
+SPDX-License-Identifier: BSD-3-Clause
+SPDX-FileCopyrightText: Czech Technical University in Prague
+-->
+<library path="src">
+  <class name="TriggerButton" type="cras_rqt_buttons.trigger_button.CrasRqtTriggerButton" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      RQt plugin with a large button that calls a std_srvs/Trigger service.
+    </description>
+    <qtgui>
+      <group>
+        <label>Services</label>
+        <icon type="theme">folder</icon>
+      </group>
+      <label>Service Trigger Button</label>
+      <icon type="theme">applications-accessories</icon>
+      <statustip>A large touch-friendly button calling a std_srvs/Trigger service, e.g. to start or stop a robot mission.</statustip>
+    </qtgui>
+  </class>
+  <class name="PushButton" type="cras_rqt_buttons.push_button.CrasRqtPushButton" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      RQt plugin with a large button that calls a std_srvs/SetBool service, with true
+      while the button is held and false once it is released.
+    </description>
+    <qtgui>
+      <group>
+        <label>Services</label>
+        <icon type="theme">folder</icon>
+      </group>
+      <label>Service Push Button</label>
+      <icon type="theme">input-mouse</icon>
+      <statustip>A large touch-friendly button calling std_srvs/SetBool with true when pushed and false when released.</statustip>
+    </qtgui>
+  </class>
+</library>

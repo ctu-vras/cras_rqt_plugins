@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<!--
+SPDX-License-Identifier: BSD-3-Clause
+SPDX-FileCopyrightText: Czech Technical University in Prague
+-->
+<package format="3">
+  <name>cras_rqt_buttons</name>
+  <version>0.0.0</version>
+  <description>Large touch-friendly RQt buttons calling std_srvs services, e.g. to start a robot mission.</description>
+  <maintainer email="peckama2@fel.cvut.cz">Martin Pecka</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <exec_depend>python_qt_binding</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rqt_gui</exec_depend>
+  <exec_depend>rqt_gui_py</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+  <test_depend>launch</test_depend>
+  <test_depend>launch_ros</test_depend>
+  <test_depend>rqt_gui</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+    <rqt_gui plugin="${prefix}/plugin.xml"/>
+  </export>
+</package>

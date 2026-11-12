@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<!--
+SPDX-License-Identifier: BSD-3-Clause
+SPDX-FileCopyrightText: Czech Technical University in Prague
+-->
+<package format="3">
+  <name>cras_rqt_text</name>
+  <version>0.0.0</version>
+  <description>An RQt plugin showing a text coming from a std_msgs/String or rviz_2d_overlay_msgs/OverlayText topic with the markup in the text interpreted.</description>
+  <maintainer email="peckama2@fel.cvut.cz">Martin Pecka</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <exec_depend>python_qt_binding</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rosidl_runtime_py</exec_depend>
+  <exec_depend>rqt_gui</exec_depend>
+  <exec_depend>rqt_gui_py</exec_depend>
+  <exec_depend>rviz_2d_overlay_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+    <rqt_gui plugin="${prefix}/plugin.xml"/>
+  </export>
+</package>
