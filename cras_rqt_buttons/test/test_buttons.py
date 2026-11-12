@@ -25,6 +25,22 @@ from rclpy.executors import SingleThreadedExecutor  # noqa: E402
 from rclpy.node import Node  # noqa: E402
 from std_srvs.srv import SetBool, Trigger  # noqa: E402
 
+try:
+    MouseButtonPress = QEvent.Type.MouseButtonPress
+    MouseButtonRelease = QEvent.Type.MouseButtonRelease
+    LeftButton = Qt.MouseButton.LeftButton
+    NoButton = Qt.MouseButton.NoButton
+    NoModifier = Qt.KeyboardModifier.NoModifier
+    from python_qt_binding.QtCore import QPointF
+except AttributeError:
+    MouseButtonPress = QEvent.MouseButtonPress
+    MouseButtonRelease = QEvent.MouseButtonRelease
+    LeftButton = Qt.LeftButton
+    NoButton = Qt.NoButton
+    NoModifier = Qt.NoModifier
+    from python_qt_binding.QtCore import QPoint
+    QPointF = QPoint
+
 
 class SettingsProxy:
     """A stand-in for the settings proxy rqt hands to the plugins."""
@@ -139,11 +155,11 @@ class RosGuiTest(unittest.TestCase):
         :param wait: how long to let the request travel to the service and back; ``None`` leaves it
             on the way, which is how to see what the button does before a response arrives
         """
-        self._mouse_event(widget, QEvent.MouseButtonPress, wait)
+        self._mouse_event(widget, MouseButtonPress, wait)
 
     def release(self, widget, wait: float = 0.3) -> None:
         """Let the button go."""
-        self._mouse_event(widget, QEvent.MouseButtonRelease, wait)
+        self._mouse_event(widget, MouseButtonRelease, wait)
 
     def click(self, widget, wait: float = 0.3) -> None:
         """Press and release the button in one go."""
@@ -152,9 +168,9 @@ class RosGuiTest(unittest.TestCase):
 
     def _mouse_event(self, widget, event_type, wait) -> None:
         button = widget.button
-        pressed = Qt.LeftButton if event_type == QEvent.MouseButtonPress else Qt.NoButton
-        event = QMouseEvent(event_type, button.rect().center(), Qt.LeftButton, pressed,
-                            Qt.NoModifier)
+        pressed = LeftButton if event_type == MouseButtonPress else NoButton
+        event = QMouseEvent(event_type, QPointF(button.rect().center()), LeftButton, pressed,
+                            NoModifier)
         QApplication.sendEvent(button, event)
         self.app.processEvents()
         if wait is not None:
@@ -678,8 +694,8 @@ class ThreadedTest(unittest.TestCase):
             pressed_at = time.monotonic()
             button = widget.button
             QApplication.sendEvent(
-                button, QMouseEvent(QEvent.MouseButtonPress, button.rect().center(),
-                                    Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
+                button, QMouseEvent(MouseButtonPress, QPointF(button.rect().center()),
+                                    LeftButton, LeftButton, NoModifier))
             took = time.monotonic() - pressed_at
             self.assertLess(took, 0.2, 'pressing the button had to wait for the service')
             self.assertEqual(1, widget.pending_requests())  # the request is on its way

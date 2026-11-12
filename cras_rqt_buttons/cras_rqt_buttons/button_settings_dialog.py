@@ -16,9 +16,23 @@ from python_qt_binding.QtWidgets import (QCheckBox, QColorDialog, QDialog, QDial
 try:
     # Qt6
     AllNonFixedFieldsGrow = QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+    transparent = Qt.GlobalColor.transparent
+    Antialiasing = QPainter.RenderHint.Antialiasing
+    Button = QPalette.ColorRole.Button
+    Text = QPalette.ColorRole.Text
+    DashLine = Qt.PenStyle.DashLine
+    Ok = QDialogButtonBox.StandardButton.Ok
+    Cancel = QDialogButtonBox.StandardButton.Cancel
 except AttributeError:
     # broken Qt5
     AllNonFixedFieldsGrow = QFormLayout.AllNonFixedFieldsGrow
+    transparent = Qt.transparent
+    Antialiasing = QPainter.Antialiasing
+    Button = QPalette.Button
+    Text = QPalette.Text
+    DashLine = Qt.DashLine
+    Ok = QDialogButtonBox.Ok
+    Cancel = QDialogButtonBox.Cancel
     
 
 COLOR_BUTTON_WIDTH = 130  # px, wide enough to be a comfortable target for a finger
@@ -57,16 +71,16 @@ def color_chip(color, parent: QWidget = None) -> QIcon:
     :param parent: the widget whose colors are used to paint the empty chip
     """
     pixmap = QPixmap(CHIP_WIDTH + CHIP_GAP, CHIP_HEIGHT)
-    pixmap.fill(Qt.transparent)
+    pixmap.fill(transparent)
     painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setRenderHint(Antialiasing)
     area = QRectF(0.5, 0.5, CHIP_WIDTH - 1.0, CHIP_HEIGHT - 1.0)
     if color is None:
         # a dashed outline, the way a line edit shows it holds nothing
         palette = parent.palette() if parent is not None else QPalette()
-        painter.setBrush(palette.brush(QPalette.Button))
-        pen = QPen(palette.color(QPalette.Text))
-        pen.setStyle(Qt.DashLine)
+        painter.setBrush(palette.brush(Button))
+        pen = QPen(palette.color(Text))
+        pen.setStyle(DashLine)
         painter.setPen(pen)
     else:
         painter.setBrush(QBrush(color))
@@ -212,7 +226,7 @@ class ButtonSettingsDialog(QDialog):
                 form.addRow(item.metadata.get('label', item.name), widget)
             layout.addLayout(form)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons = QDialogButtonBox(Ok | Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)

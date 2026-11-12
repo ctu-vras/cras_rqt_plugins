@@ -15,9 +15,13 @@ from python_qt_binding.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDi
 try:
     # Qt6
     AllNonFixedFieldsGrow = QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+    Ok = QDialogButtonBox.StandardButton.Ok
+    Cancel = QDialogButtonBox.StandardButton.Cancel
 except AttributeError:
-    # broken Qt5
+    # Qt5
     AllNonFixedFieldsGrow = QFormLayout.AllNonFixedFieldsGrow
+    Ok = QDialogButtonBox.Ok
+    Cancel = QDialogButtonBox.Cancel
 
 # What to show as the standard color when nobody says what the standard color of the widget is.
 BLACK = (0, 0, 0, 255)
@@ -127,7 +131,7 @@ class TextSettingsDialog(QDialog):
         self._widgets['message_type'].currentIndexChanged.connect(self._show_overlay_settings)
         self._show_overlay_settings()
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons = QDialogButtonBox(Ok | Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)

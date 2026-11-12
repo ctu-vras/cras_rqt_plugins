@@ -17,7 +17,7 @@ from python_qt_binding.QtWidgets import QDialog, QSizePolicy, QWidget
 try:
     # Qt6
     Expanding = QSizePolicy.Policy.Expanding
-    Window = QPalette.ColorGroup.Window
+    Window = QPalette.ColorRole.Window
     WindowText = QPalette.ColorRole.WindowText
 except AttributeError:
     # Qt5
