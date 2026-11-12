@@ -11,6 +11,13 @@ from python_qt_binding.QtGui import QColor, QFontMetricsF
 from python_qt_binding.QtWidgets import QDialog, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 from std_srvs.srv import SetBool, Trigger
 
+try:
+    # Qt6
+    Expanding = QSizePolicy.Policy.Expanding
+except AttributeError:
+    # Qt5
+    Expanding = QSizePolicy.Expanding
+
 
 def _css_color(color) -> str:
     """The color in a form understood by a Qt style sheet."""
@@ -66,14 +73,14 @@ class ServiceButtonWidget(QWidget):
         self.setObjectName(f'cras_rqt_buttons__{type(self).__name__}')
         self.setWindowTitle(type(self).WINDOW_TITLE)
         self.setMinimumSize(self.MIN_BUTTON_SIZE, self.MIN_BUTTON_SIZE)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setSizePolicy(Expanding, Expanding)
 
         self._button = QPushButton(self._settings.button_text, self)
         self._button.setObjectName(f'{type(self).__name__}__button')
         self._button.setFocusPolicy(Qt.NoFocus)  # a focus frame only distracts on a touchscreen
         self._button.setContextMenuPolicy(Qt.NoContextMenu)
         self._button.setMinimumSize(self.MIN_BUTTON_SIZE, self.MIN_BUTTON_SIZE)
-        self._button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self._button.setSizePolicy(Expanding, Expanding)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

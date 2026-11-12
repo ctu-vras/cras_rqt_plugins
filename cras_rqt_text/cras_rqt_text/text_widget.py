@@ -14,6 +14,13 @@ from python_qt_binding.QtCore import QSize
 from python_qt_binding.QtGui import QColor, QPainter, QPalette, QTextDocument
 from python_qt_binding.QtWidgets import QDialog, QSizePolicy, QWidget
 
+try:
+    # Qt6
+    Expanding = QSizePolicy.Policy.Expanding
+except AttributeError:
+    # Qt5
+    Expanding = QSizePolicy.Expanding
+
 
 class TextWidget(QWidget):
     """
@@ -34,7 +41,7 @@ class TextWidget(QWidget):
         super().__init__(parent)
         self.setObjectName('cras_rqt_text__Text')
         self.setWindowTitle('Text')
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setSizePolicy(Expanding, Expanding)
         self._settings = TextSettings()
         self._message = None
         self._preferred_size = None

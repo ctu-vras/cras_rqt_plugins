@@ -12,6 +12,13 @@ from python_qt_binding.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDi
                                          QHBoxLayout, QLabel, QLineEdit, QPushButton, QSpinBox,
                                          QVBoxLayout, QWidget)
 
+try:
+    # Qt5 or fixed Qt6
+    AllNonFixedFieldsGrow = QFormLayout.AllNonFixedFieldsGrow
+except AttributeError:
+    # broken Qt6
+    AllNonFixedFieldsGrow = 2
+
 # What to show as the standard color when nobody says what the standard color of the widget is.
 BLACK = (0, 0, 0, 255)
 
@@ -105,7 +112,7 @@ class TextSettingsDialog(QDialog):
                 if section == 'OverlayText':
                     overlay_label = heading
             form = QFormLayout()
-            form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+            form.setFieldGrowthPolicy(AllNonFixedFieldsGrow)
             for item in items:
                 widget = self._create_widget(item, getattr(settings, item.name),
                                              self._standard_colors.get(item.name))

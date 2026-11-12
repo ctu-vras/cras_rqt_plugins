@@ -13,6 +13,13 @@ from python_qt_binding.QtWidgets import (QCheckBox, QColorDialog, QDialog, QDial
                                          QLineEdit, QPushButton, QStyle, QToolButton,
                                          QVBoxLayout, QWidget)
 
+try:
+    # Qt5 or fixed Qt6
+    AllNonFixedFieldsGrow = QFormLayout.AllNonFixedFieldsGrow
+except AttributeError:
+    # broken Qt6
+    AllNonFixedFieldsGrow = 2
+
 COLOR_BUTTON_WIDTH = 130  # px, wide enough to be a comfortable target for a finger
 CHIP_WIDTH = 40  # px, the chip of the color the color selection shows
 CHIP_HEIGHT = 18  # px
@@ -196,7 +203,7 @@ class ButtonSettingsDialog(QDialog):
             if section:
                 layout.addWidget(QLabel(f'<b>{section}</b>'))
             form = QFormLayout()
-            form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+            form.setFieldGrowthPolicy(AllNonFixedFieldsGrow)
             for item in items:
                 widget = self._create_widget(item, getattr(settings, item.name))
                 widget.setToolTip(item.metadata.get('description', ''))
