@@ -131,8 +131,8 @@ class PtzControlWidget(QWidget):
         zoom_step = self._settings.zoom_step
         zoom_rate = self._settings.zoom_rate_per_s
         self._commands = {
-            self._up: (PtzCommand(pitch=-step), PtzCommand(pitch=rate)),
-            self._down: (PtzCommand(pitch=step), PtzCommand(pitch=-rate)),
+            self._up: (PtzCommand(pitch=-step), PtzCommand(pitch=-rate)),
+            self._down: (PtzCommand(pitch=step), PtzCommand(pitch=rate)),
             self._left: (PtzCommand(yaw=step), PtzCommand(yaw=rate)),
             self._right: (PtzCommand(yaw=-step), PtzCommand(yaw=-rate)),
             self._zoom_in: (PtzCommand(zoom=zoom_step), PtzCommand(zoom=zoom_rate)),
