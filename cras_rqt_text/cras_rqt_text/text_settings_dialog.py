@@ -13,11 +13,11 @@ from python_qt_binding.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDi
                                          QVBoxLayout, QWidget)
 
 try:
-    # Qt5 or fixed Qt6
-    AllNonFixedFieldsGrow = QFormLayout.AllNonFixedFieldsGrow
+    # Qt6
+    AllNonFixedFieldsGrow = QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
 except AttributeError:
-    # broken Qt6
-    AllNonFixedFieldsGrow = 2
+    # broken Qt5
+    AllNonFixedFieldsGrow = QFormLayout.AllNonFixedFieldsGrow
 
 # What to show as the standard color when nobody says what the standard color of the widget is.
 BLACK = (0, 0, 0, 255)

@@ -14,11 +14,12 @@ from python_qt_binding.QtWidgets import (QCheckBox, QColorDialog, QDialog, QDial
                                          QVBoxLayout, QWidget)
 
 try:
-    # Qt5 or fixed Qt6
-    AllNonFixedFieldsGrow = QFormLayout.AllNonFixedFieldsGrow
+    # Qt6
+    AllNonFixedFieldsGrow = QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
 except AttributeError:
-    # broken Qt6
-    AllNonFixedFieldsGrow = 2
+    # broken Qt5
+    AllNonFixedFieldsGrow = QFormLayout.AllNonFixedFieldsGrow
+    
 
 COLOR_BUTTON_WIDTH = 130  # px, wide enough to be a comfortable target for a finger
 CHIP_WIDTH = 40  # px, the chip of the color the color selection shows

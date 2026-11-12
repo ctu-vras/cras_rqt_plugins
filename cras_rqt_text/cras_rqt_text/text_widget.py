@@ -17,9 +17,13 @@ from python_qt_binding.QtWidgets import QDialog, QSizePolicy, QWidget
 try:
     # Qt6
     Expanding = QSizePolicy.Policy.Expanding
+    Window = QPalette.ColorGroup.Window
+    WindowText = QPalette.ColorRole.WindowText
 except AttributeError:
     # Qt5
     Expanding = QSizePolicy.Expanding
+    Window = QPalette.Window
+    WindowText = QPalette.WindowText
 
 
 class TextWidget(QWidget):
@@ -130,8 +134,8 @@ class TextWidget(QWidget):
         The colors come from the palette, so a dark rqt gets a dark text widget too.
         """
         palette = self.palette()
-        return {'text_color': palette.color(QPalette.WindowText).getRgb(),
-                'background_color': palette.color(QPalette.Window).getRgb()}
+        return {'text_color': palette.color(WindowText).getRgb(),
+                'background_color': palette.color(Window).getRgb()}
 
     @staticmethod
     def _preferred_size_of(frame) -> Optional[QSize]:

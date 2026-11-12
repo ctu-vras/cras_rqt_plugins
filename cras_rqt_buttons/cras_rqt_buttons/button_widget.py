@@ -14,9 +14,13 @@ from std_srvs.srv import SetBool, Trigger
 try:
     # Qt6
     Expanding = QSizePolicy.Policy.Expanding
+    NoFocus = Qt.FocusPolicy.NoFocus
+    NoContextMenu = Qt.ContextMenuPolicy.NoContextMenu
 except AttributeError:
     # Qt5
     Expanding = QSizePolicy.Expanding
+    NoFocus = Qt.NoFocus
+    NoContextMenu = Qt.NoContextMenu
 
 
 def _css_color(color) -> str:
@@ -77,8 +81,8 @@ class ServiceButtonWidget(QWidget):
 
         self._button = QPushButton(self._settings.button_text, self)
         self._button.setObjectName(f'{type(self).__name__}__button')
-        self._button.setFocusPolicy(Qt.NoFocus)  # a focus frame only distracts on a touchscreen
-        self._button.setContextMenuPolicy(Qt.NoContextMenu)
+        self._button.setFocusPolicy(NoFocus)  # a focus frame only distracts on a touchscreen
+        self._button.setContextMenuPolicy(NoContextMenu)
         self._button.setMinimumSize(self.MIN_BUTTON_SIZE, self.MIN_BUTTON_SIZE)
         self._button.setSizePolicy(Expanding, Expanding)
 
