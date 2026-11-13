@@ -47,7 +47,7 @@ class TextWidget(QWidget):
     def open_configuration(self) -> None:
         """Let the user change the topic, the message type and the text appearance."""
         dialog = TextSettingsDialog(self._settings, self)
-        if dialog.exec() != QDialog.Accepted:
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self._settings = dialog.settings()
         self._apply_settings()
@@ -75,13 +75,13 @@ class TextWidget(QWidget):
         frame = self._frame()
         painter = QPainter(self)
         if frame is None:
-            painter.fillRect(self.rect(), self.palette().color(QPalette.Window))
+            painter.fillRect(self.rect(), self.palette().color(QPalette.ColorRole.Window))
             return
-        background = QColor(frame.background) if frame.background else self.palette().color(QPalette.Window)
+        background = QColor(frame.background) if frame.background else self.palette().color(QPalette.ColorRole.Window)
         if background.alpha() < 255:
             # Paint the plain widget background first, so that a translucent background does not
             # leave anything of the text shown before behind.
-            painter.fillRect(self.rect(), self.palette().color(QPalette.Window))
+            painter.fillRect(self.rect(), self.palette().color(QPalette.ColorRole.Window))
         painter.fillRect(self.rect(), background)
         if not frame.text.strip():
             return

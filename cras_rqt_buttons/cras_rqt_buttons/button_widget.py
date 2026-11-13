@@ -137,7 +137,7 @@ class ServiceButtonWidget(QWidget):
         """Let the user change the service the button calls and the way the button looks."""
         title = f'{type(self).WINDOW_TITLE} configuration'
         dialog = ButtonSettingsDialog(self._settings, title, self, hold_mode=self.HOLD_MODE)
-        if dialog.exec() != QDialog.Accepted:
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self.apply_settings(dialog.settings())
 
