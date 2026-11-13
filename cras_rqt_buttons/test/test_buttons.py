@@ -4,6 +4,7 @@
 """Tests of the buttons calling ROS services."""
 
 import os
+import re
 import threading
 import time
 import unittest
@@ -20,7 +21,7 @@ from cras_rqt_buttons.button_widget import PushButtonWidget, TriggerButtonWidget
 from cras_rqt_buttons.push_button import CrasRqtPushButton  # noqa: E402
 from cras_rqt_buttons.trigger_button import CrasRqtTriggerButton  # noqa: E402
 from python_qt_binding.QtCore import QEvent, QObject, Qt  # noqa: E402
-from python_qt_binding.QtGui import QMouseEvent  # noqa: E402
+from python_qt_binding.QtGui import QColor, QMouseEvent, QPalette  # noqa: E402
 from python_qt_binding.QtWidgets import QApplication, QWidget  # noqa: E402
 from rclpy.executors import SingleThreadedExecutor  # noqa: E402
 from rclpy.node import Node  # noqa: E402
@@ -110,6 +111,24 @@ class RosGuiTest(unittest.TestCase):
             self.extra_nodes.append(node)
         return node.create_service(service_type, name, handler)
 
+    def silent_service(self, service_type, name, node_name):
+        """
+        Offer a service that does not answer until the test says so.
+
+        The node offering the service is not spun by anybody, so a request sent to it stays on its
+        way, which is how a button can be watched while it is still waiting for an answer.
+
+        :returns: the node offering the service, to be handed to :meth:`wake_up`
+        """
+        node = Node(node_name)
+        self.serve(service_type, name, self.accepted, node=node)
+        return node
+
+    def wake_up(self, node) -> None:
+        """Let a node made by :meth:`silent_service` answer the requests it has been given."""
+        self.executor.add_node(node)
+        self.addCleanup(self.executor.remove_node, node)
+
     def make_widget(self, widget_type, service_type, service_name, handler, **settings):
         """
         Create a button and a service of the matching type next to it.
@@ -172,6 +191,20 @@ class RosGuiTest(unittest.TestCase):
 
 class ButtonTest(RosGuiTest):
     """How the buttons behave towards the operator and towards the service."""
+
+    @staticmethod
+    def painted_background(widget):
+        """The color the button is painted with, and nothing if the Qt style paints it itself."""
+        ordinary = widget.button.styleSheet().split(':pressed')[0]
+        painted = re.search(r'background-color: (#[0-9a-fA-F]{6})', ordinary)
+        return QColor(painted.group(1)) if painted else None
+
+    @staticmethod
+    def standard_background(widget) -> QColor:
+        """The color an ordinary button of the Qt style in use is painted with."""
+        # not the palette of the button itself, which already knows about the style sheet it is
+        # painted with while it is waiting for an answer
+        return QColor(widget.palette().color(QPalette.ColorRole.Button))
 
     def test_disabled_while_there_is_no_service(self):
         widget = TriggerButtonWidget(self.node)
@@ -269,6 +302,114 @@ class ButtonTest(RosGuiTest):
         self.assertTrue(self.spin_until(lambda: widget.is_error(), timeout=3.0))
         self.assertIn('did not respond', widget.button.toolTip())
 
+    # a button that has something to wait for
+
+    def test_the_button_goes_dark_while_the_service_thinks(self):
+        server = self.silent_service(Trigger, '/button_tests/thinking', 'button_tests_thinking')
+        widget = TriggerButtonWidget(self.node)
+        self.widgets.append(widget)
+        widget.apply_settings(ButtonSettings(service_name='/button_tests/thinking',
+                                             button_color='#4a90d9'))
+        self.assertTrue(self.spin_until(lambda: widget.button.isEnabled()))
+        self.assertEqual(QColor('#4a90d9'), self.painted_background(widget))
+
+        self.click(widget, wait=None)  # the request is on its way and nothing answered yet
+        self.assertTrue(widget.is_waiting())
+        self.assertFalse(widget.is_active())  # a button that is only clicked is never active
+        self.assertLess(self.painted_background(widget).lightness(),
+                        QColor('#4a90d9').lightness(), 'the button does not look busy at all')
+        self.assertIn('Waiting for /button_tests/thinking to answer', widget.button.toolTip())
+
+        self.wake_up(server)  # the service gets to answer at last
+        self.assertTrue(self.spin_until(lambda: not widget.is_waiting()))
+        self.assertEqual(QColor('#4a90d9'), self.painted_background(widget))
+        self.assertNotIn('to answer', widget.button.toolTip())
+
+    def test_a_button_without_a_color_of_its_own_goes_dark_too(self):
+        server = self.silent_service(Trigger, '/button_tests/thinking_plain',
+                                     'button_tests_thinking_plain')
+        widget = TriggerButtonWidget(self.node)
+        self.widgets.append(widget)
+        widget.apply_settings(ButtonSettings(service_name='/button_tests/thinking_plain'))
+        self.assertTrue(self.spin_until(lambda: widget.button.isEnabled()))
+        self.assertEqual('', widget.button.styleSheet())  # the look of an ordinary Qt button
+
+        self.click(widget, wait=None)
+        self.assertTrue(widget.is_waiting())
+        self.assertLess(self.painted_background(widget).lightness(),
+                        self.standard_background(widget).lightness())
+
+        self.wake_up(server)
+        self.assertTrue(self.spin_until(lambda: not widget.is_waiting()))
+        self.assertEqual('', widget.button.styleSheet())
+
+    def test_a_button_that_gives_up_on_a_call_stops_looking_busy(self):
+        self.silent_service(Trigger, '/button_tests/dull', 'button_tests_dull')
+        widget = TriggerButtonWidget(self.node)
+        self.widgets.append(widget)
+        widget.apply_settings(ButtonSettings(service_name='/button_tests/dull',
+                                             response_timeout=0.2))
+        self.assertTrue(self.spin_until(lambda: widget.button.isEnabled()))
+        self.click(widget, wait=None)
+        self.assertTrue(widget.is_waiting())
+        self.assertTrue(self.spin_until(lambda: widget.is_error(), timeout=3.0))
+        self.assertFalse(widget.is_waiting())  # it is not waiting anymore, so it says so either
+        # it is not waiting, so it complains about the call instead
+        self.assertEqual(QColor('#c62828'), self.painted_background(widget))
+
+    # sending a request that did not work once again
+
+    def test_by_default_the_service_is_asked_only_once(self):
+        def refuses(request, response):
+            response.success = False
+            response.message = 'the mission is busy'
+            return response
+
+        widget, requests = self.make_widget(
+            TriggerButtonWidget, Trigger, '/button_tests/busy_once', refuses)
+        self.click(widget)
+        self.assertTrue(self.spin_until(lambda: widget.is_error()))
+        self.assertEqual(1, len(requests))
+
+    def test_a_request_that_is_refused_is_sent_again_until_it_works(self):
+        answered = []
+
+        def refuses_the_first_two(request, response):
+            response.success = len(answered) > 1
+            response.message = 'ok' if response.success else 'the mission is starting'
+            answered.append(request)
+            return response
+
+        widget, requests = self.make_widget(
+            TriggerButtonWidget, Trigger, '/button_tests/flaky', refuses_the_first_two,
+            button_color='#4a90d9', call_attempts=3)
+        self.click(widget, wait=None)
+        self.assertTrue(widget.is_waiting())
+        self.spin(0.2)  # an attempt that did not work is being sent again right now
+        self.assertTrue(widget.is_waiting())
+        self.assertTrue(self.spin_until(lambda: widget.pending_requests() == 0, timeout=5.0))
+        self.assertEqual(3, len(requests))
+        # in the end the service took the request, so the button has nothing to complain about
+        self.assertFalse(widget.is_error())
+        self.assertFalse(widget.is_waiting())
+        self.assertEqual(QColor('#4a90d9'), self.painted_background(widget))
+
+    def test_a_request_that_never_works_is_given_up_on(self):
+        def refuses(request, response):
+            response.success = False
+            response.message = 'the mission is busy'
+            return response
+
+        widget, requests = self.make_widget(
+            TriggerButtonWidget, Trigger, '/button_tests/always_busy', refuses,
+            call_attempts=4, error_color='#ff0000')
+        self.click(widget)
+        self.assertTrue(self.spin_until(lambda: widget.is_error(), timeout=5.0))
+        self.assertEqual(4, len(requests))  # the attempts are used up, and the button complains
+        self.assertIn('the mission is busy', widget.button.toolTip())
+        self.assertIn('#ff0000', widget.button.styleSheet())
+        self.assertFalse(widget.is_waiting())
+
     # the push button
 
     def test_push_button_calls_with_true_when_pushed_and_false_when_released(self):
@@ -352,6 +493,120 @@ class ButtonTest(RosGuiTest):
         self.click(widget)
         self.assertEqual(1, len(requests))
         self.assertFalse(widget.is_error())
+
+    # what the push button shows while it is held
+
+    def test_the_push_button_shows_that_it_registered_the_press(self):
+        server = self.silent_service(SetBool, '/button_tests/ptt', 'button_tests_ptt_press')
+        widget = PushButtonWidget(self.node)
+        self.widgets.append(widget)
+        widget.apply_settings(ButtonSettings(service_name='/button_tests/ptt'))
+        self.assertTrue(self.spin_until(lambda: widget.button.isEnabled()))
+
+        self.press(widget, wait=None)  # the service never gets to answer the press
+        self.assertTrue(widget.is_waiting())
+        self.assertFalse(widget.is_active())  # holding is not accepted until the service says so
+        self.assertLess(self.painted_background(widget).lightness(),
+                        self.standard_background(widget).lightness())
+        self.assertIn('Registered the press, waiting for /button_tests/ptt to accept it',
+                      widget.button.toolTip())
+
+    def test_the_push_button_shows_that_it_registered_the_release(self):
+        server = self.silent_service(SetBool, '/button_tests/ptt_release', 'button_tests_ptt_rel')
+        widget = PushButtonWidget(self.node)
+        self.widgets.append(widget)
+        widget.apply_settings(ButtonSettings(service_name='/button_tests/ptt_release'))
+        self.assertTrue(self.spin_until(lambda: widget.button.isEnabled()))
+
+        self.press(widget, wait=None)
+        self.release(widget, wait=None)  # let go of the button while the press is still on its way
+        self.assertTrue(widget.is_waiting())
+        self.assertIn('Registered the release', widget.button.toolTip())
+        self.assertNotIn('Registered the press', widget.button.toolTip())
+
+        self.wake_up(server)  # both requests are answered at last
+        self.assertTrue(self.spin_until(lambda: not widget.is_waiting()))
+        self.assertFalse(widget.is_active())  # the service was told that the button is free again
+        self.assertEqual('', widget.button.styleSheet())
+
+    def test_the_push_button_is_active_once_the_service_takes_the_press(self):
+        widget, requests = self.make_widget(
+            PushButtonWidget, SetBool, '/button_tests/ptt_ready', self.accepted,
+            button_color='#f9a825', active_color='#00aa00', active_text_color='black')
+        self.press(widget)
+        self.assertTrue(widget.is_active())
+        self.assertFalse(widget.is_waiting())
+        sheet = widget.button.styleSheet()
+        self.assertEqual(QColor('#00aa00'), self.painted_background(widget))
+        self.assertNotIn('#f9a825', sheet)  # while it is held, the active color is what is painted
+        self.assertIn('color: #000000;', sheet)  # the text color asked for, not the ordinary one
+
+        self.release(widget)
+        self.assertTrue(self.spin_until(lambda: not widget.is_active()))
+        self.assertEqual(QColor('#f9a825'), self.painted_background(widget))
+
+    def test_the_push_button_is_active_for_the_value_it_sends_while_held(self):
+        widget, requests = self.make_widget(
+            PushButtonWidget, SetBool, '/button_tests/ptt_inverted_active', self.accepted,
+            invert_value=True, active_color='#00aa00')
+        self.press(widget)
+        self.assertEqual([False], [request.data for request in requests])
+        # an inverted button holds false, so that is the value the button is active for
+        self.assertTrue(widget.is_active())
+        self.assertEqual(QColor('#00aa00'), self.painted_background(widget))
+        self.release(widget)
+        self.assertTrue(self.spin_until(lambda: not widget.is_active()))
+
+    def test_a_press_that_the_service_refuses_does_not_make_the_button_active(self):
+        def refuses_press(request, response):
+            response.success = not request.data
+            response.message = 'the loudspeaker is busy'
+            return response
+
+        widget, _ = self.make_widget(
+            PushButtonWidget, SetBool, '/button_tests/ptt_refused', refuses_press,
+            active_color='#00aa00')
+        self.press(widget)
+        self.assertFalse(widget.is_active())
+        self.assertNotIn('#00aa00', widget.button.styleSheet())
+        self.assertIn('#c62828', widget.button.styleSheet())  # the failure is what is shown now
+
+    def test_the_button_stays_active_until_the_release_goes_through(self):
+        releases = []
+
+        def refuses_the_first_release(request, response):
+            if not request.data:
+                releases.append(request)
+            response.success = request.data or len(releases) > 1
+            response.message = 'the loudspeaker is still busy'
+            return response
+
+        widget, requests = self.make_widget(
+            PushButtonWidget, SetBool, '/button_tests/ptt_hard_release', refuses_the_first_release,
+            active_color='#00aa00', call_attempts=3)
+        self.press(widget)
+        self.assertTrue(widget.is_active())
+
+        self.release(widget, wait=None)
+        self.assertTrue(widget.is_waiting())  # the release was registered and is on its way
+        self.assertTrue(widget.is_active())  # and until it goes through, the button is still held
+        self.assertIn('Registered the release', widget.button.toolTip())
+        self.assertTrue(self.spin_until(lambda: widget.pending_requests() == 0, timeout=5.0))
+        self.assertEqual([True, False, False], [request.data for request in requests])
+        self.assertFalse(widget.is_error())
+        self.assertFalse(widget.is_active())
+
+    def test_a_button_without_active_colors_keeps_the_color_it_has_anyway(self):
+        widget, _ = self.make_widget(
+            PushButtonWidget, SetBool, '/button_tests/ptt_no_active', self.accepted,
+            button_color='#f9a825')
+        self.assertEqual('', widget.settings().active_color)
+        self.press(widget)
+        self.assertTrue(widget.is_active())
+        self.assertEqual(QColor('#f9a825'), self.painted_background(widget))
+        self.release(widget)
+        self.assertTrue(self.spin_until(lambda: not widget.is_active()))
+        self.assertEqual(QColor('#f9a825'), self.painted_background(widget))
 
     # the way the button looks
 
@@ -450,7 +705,8 @@ class ButtonTest(RosGuiTest):
         self.widgets.append(widget)
         widget.apply_settings(ButtonSettings(
             service_name='/button_tests/stored', button_text='Home', button_color='yellow',
-            text_color='black', error_color='blue', response_timeout=3.0, invert_value=True))
+            text_color='black', error_color='blue', active_color='green',
+            active_text_color='white', response_timeout=3.0, call_attempts=4, invert_value=True))
         proxy = SettingsProxy()
         widget.save_settings(None, proxy)
         self.assertEqual('/button_tests/stored', proxy.values['service_name'])
@@ -462,8 +718,10 @@ class ButtonTest(RosGuiTest):
         other.restore_settings(None, proxy)
         self.assertEqual(ButtonSettings(
             service_name='/button_tests/stored', button_text='Home', button_color='#ffff00',
-            text_color='#000000', error_color='#0000ff', response_timeout=3.0, invert_value=True,
+            text_color='#000000', error_color='#0000ff', active_color='#008000',
+            active_text_color='#ffffff', response_timeout=3.0, call_attempts=4, invert_value=True,
         ), other.settings())
+        self.assertIsInstance(other.settings().call_attempts, int)  # a count, not a decimal number
         self.assertEqual('Home', other.button.text())
         self.assertIn('#ffff00', other.button.styleSheet())
 
@@ -489,7 +747,9 @@ class ButtonTest(RosGuiTest):
     def test_the_configuration_dialog_hands_the_settings_back(self):
         settings = ButtonSettings(service_name='/mission/patrol', button_text='Patrol',
                                   button_color='#2e7d32', text_color='#ffffff',
-                                  error_color='#c62828', response_timeout=4.0, invert_value=True)
+                                  error_color='#c62828', active_color='#4a90d9',
+                                  active_text_color='#000000', response_timeout=4.0,
+                                  call_attempts=2, invert_value=True)
         dialog = ButtonSettingsDialog(settings, hold_mode=True)
         self.addCleanup(dialog.deleteLater)
         dialog.show()
@@ -500,12 +760,17 @@ class ButtonTest(RosGuiTest):
         dialog._widgets['button_color'].set_color('blue')
         dialog._widgets['text_color'].set_color('')  # back to the color of a standard Qt button
         dialog._widgets['response_timeout'].setValue(1.5)
+        dialog._widgets['active_color'].set_color('#00ff00')
+        dialog._widgets['call_attempts'].setValue(7)
         dialog._widgets['invert_value'].setChecked(False)
         changed = dialog.settings()
         self.assertEqual('Home', changed.button_text)
         self.assertEqual('#0000ff', changed.button_color)
         self.assertEqual('', changed.text_color)
         self.assertEqual(1.5, changed.response_timeout)
+        self.assertEqual('#00ff00', changed.active_color)
+        self.assertEqual(7, changed.call_attempts)
+        self.assertIsInstance(changed.call_attempts, int)  # a count of attempts is a whole number
         self.assertFalse(changed.invert_value)
         self.assertEqual(settings.service_name, changed.service_name)
 
@@ -513,13 +778,23 @@ class ButtonTest(RosGuiTest):
         for_hold = ButtonSettingsDialog(ButtonSettings(), hold_mode=True)
         self.addCleanup(for_hold.deleteLater)
         self.assertIn('invert_value', for_hold._widgets)
+        self.assertIn('active_color', for_hold._widgets)
         for_click = ButtonSettingsDialog(ButtonSettings())
         self.addCleanup(for_click.deleteLater)
         self.assertNotIn('invert_value', for_click._widgets)
+        self.assertNotIn('active_color', for_click._widgets)
+        self.assertNotIn('active_text_color', for_click._widgets)
+        # a button that is only clicked waits for one call just as much as a button that is held
+        self.assertIn('call_attempts', for_click._widgets)
         # a setting the dialog does not ask for is not made up either
         self.assertFalse(for_click.settings().invert_value)
+        self.assertEqual('', for_click.settings().active_color)
         self.assertTrue(ButtonSettingsDialog(ButtonSettings(invert_value=True)).settings()
                         .invert_value)
+        kept = ButtonSettingsDialog(ButtonSettings(active_color='#00ff00', call_attempts=5))
+        self.addCleanup(kept.deleteLater)
+        self.assertEqual('#00ff00', kept.settings().active_color)
+        self.assertEqual(5, kept.settings().call_attempts)
 
     def test_the_color_to_pick_shows_the_color_itself(self):
         dialog = ButtonSettingsDialog(ButtonSettings(button_color='#2e7d32'), hold_mode=True)
@@ -565,7 +840,9 @@ class ButtonTest(RosGuiTest):
             'button_color': 'not a color at all',
             'text_color': '#00ff00',
             'error_color': 12345,
+            'active_color': 'not a color either',
             'response_timeout': 'yesterday',
+            'call_attempts': 'a lot',
         })
         settings = ButtonSettings.load(proxy)
         defaults = ButtonSettings()
@@ -574,7 +851,14 @@ class ButtonTest(RosGuiTest):
         self.assertEqual(defaults.button_color, settings.button_color)
         self.assertEqual('#00ff00', settings.text_color)
         self.assertEqual(defaults.error_color, settings.error_color)
+        self.assertEqual(defaults.active_color, settings.active_color)
         self.assertEqual(defaults.response_timeout, settings.response_timeout)
+        self.assertEqual(defaults.call_attempts, settings.call_attempts)
+        # a number that is out of what the button can be asked for is kept within the range
+        self.assertEqual(10, ButtonSettings.load(SettingsProxy({'call_attempts': '400'}))
+                         .call_attempts)
+        self.assertEqual(1, ButtonSettings.load(SettingsProxy({'call_attempts': '-4'}))
+                         .call_attempts)
 
     def test_settings_can_be_given_as_arguments(self):
         defaults = ButtonSettings(button_text='Trigger')
@@ -583,6 +867,7 @@ class ButtonTest(RosGuiTest):
             '--button_text', 'Patrol',
             '--button-color', 'red',
             '--response-timeout', '2.5',
+            '--call-attempts', '4',
             '--invert-value',  # a switch does not need a value of its own
             '--somebody-elses-argument', 'whatever',
         ], defaults=defaults)
@@ -590,10 +875,11 @@ class ButtonTest(RosGuiTest):
         self.assertEqual('Patrol', settings.button_text)
         self.assertEqual('#ff0000', settings.button_color)
         self.assertEqual(2.5, settings.response_timeout)
+        self.assertEqual(4, settings.call_attempts)
         self.assertEqual(defaults.text_color, settings.text_color)
         self.assertTrue(settings.invert_value)
         self.assertEqual({'service_name', 'button_text', 'button_color', 'response_timeout',
-                          'invert_value'}, given)
+                          'call_attempts', 'invert_value'}, given)
 
         said_no, _ = ButtonSettings.from_args(
             ['--invert_value', 'false'], defaults=ButtonSettings(invert_value=True))
@@ -672,6 +958,48 @@ class ThreadedTest(unittest.TestCase):
             self.process_for(2.0)
             self.assertEqual([True], [request.data for request in calls])
             self.assertFalse(widget.is_error())
+        finally:
+            widget.shutdown()
+
+    def click(self, widget) -> None:
+        """Press and release the button the way the operator of the GUI would."""
+        button = widget.button
+        for event_type, buttons in ((QEvent.Type.MouseButtonPress, Qt.MouseButton.LeftButton),
+                                    (QEvent.Type.MouseButtonRelease, Qt.MouseButton.NoButton)):
+            QApplication.sendEvent(
+                button, QMouseEvent(event_type, QPointF(button.rect().center()),
+                                    Qt.MouseButton.LeftButton, buttons,
+                                    Qt.KeyboardModifier.NoModifier))
+
+    def test_a_request_that_did_not_work_is_sent_again_on_its_own(self):
+        # the answer arrives in another thread than the one showing the button, and sending the
+        # request once more has to happen in the thread of the button without being asked for it
+        calls = []
+
+        def refuses_the_first_time(request, response):
+            calls.append(request)
+            response.success = len(calls) > 1  # the mission server is only starting
+            response.message = 'the mission is starting'
+            return response
+
+        self.server_node.create_service(Trigger, '/button_tests/flaky_threaded',
+                                        refuses_the_first_time)
+        widget = TriggerButtonWidget(self.gui_node)
+        try:
+            widget.apply_settings(ButtonSettings(service_name='/button_tests/flaky_threaded',
+                                                 call_attempts=3))
+            enabled = False
+            deadline = time.monotonic() + 5.0
+            while time.monotonic() < deadline and not enabled:
+                self.process_for(0.05)
+                enabled = widget.button.isEnabled()
+            self.assertTrue(enabled, 'the button did not notice the service')
+            self.click(widget)
+            self.assertTrue(widget.is_waiting())
+            self.process_for(2.0)
+            self.assertEqual(2, len(calls))
+            self.assertFalse(widget.is_error())
+            self.assertFalse(widget.is_waiting())
         finally:
             widget.shutdown()
 

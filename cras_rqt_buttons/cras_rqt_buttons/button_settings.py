@@ -25,17 +25,23 @@ def _text(label: str, description: str, allow_empty: bool = False) -> dict:
 STANDARD = ''
 
 
-def _color(label: str, description: str, optional: bool = False) -> dict:
-    """Metadata of a setting with a color of the button."""
+def _color(label: str, description: str, optional: bool = False,
+           hold_only: bool = False) -> dict:
+    """
+    Metadata of a setting with a color of the button.
+
+    :param hold_only: whether the setting only makes sense for a button that is held, so that it
+        can be hidden in the configuration dialog of the buttons that are only clicked
+    """
     return {'label': label, 'description': description, 'section': 'Appearance', 'kind': 'color',
-            'optional': optional}
+            'optional': optional, 'hold_only': hold_only}
 
 
 def _number(label: str, description: str, suffix: str, decimals: int,
-            limits: tuple[float, float], step: float) -> dict:
+            limits: tuple[float, float], step: float, hold_only: bool = False) -> dict:
     """Metadata of a numeric setting."""
     return {'label': label, 'description': description, 'section': 'Behaviour', 'suffix': suffix,
-            'decimals': decimals, 'limits': limits, 'step': step}
+            'decimals': decimals, 'limits': limits, 'step': step, 'hold_only': hold_only}
 
 
 def _flag(label: str, description: str, hold_only: bool = False) -> dict:
@@ -167,9 +173,21 @@ class ButtonSettings:
     error_color: str = field(default='#c62828', metadata=_color(
         'Error color', 'The color of the button once the service call fails. The button stops '
         'being red as soon as it is pressed again.'))
+    active_color: str = field(default=STANDARD, metadata=_color(
+        'Active color', 'The color of a button that is held once the service accepts that it is '
+        'held. Leave it empty to keep the ordinary color of the button.', optional=True,
+        hold_only=True))
+    active_text_color: str = field(default=STANDARD, metadata=_color(
+        'Active text color', 'The color of the text on the button while it is active. Leave it '
+        'empty to use the color the Qt style uses for the text of a button.', optional=True,
+        hold_only=True))
     response_timeout: float = field(default=10.0, metadata=_number(
         'Response timeout', 'For how long to wait for the response before the call is considered '
         'failed. Use 0 to wait for the response indefinitely.', ' s', 1, (0.0, 600.0), 0.5))
+    call_attempts: int = field(default=1, metadata=_number(
+        'Call attempts', 'How many times to send the request counting the first try. The request '
+        'is sent again until the service accepts it or the attempts are used up, which suits a '
+        'service that is only restarting.', '', 0, (1, 10), 1))
     invert_value: bool = field(default=False, metadata=_flag(
         'Invert value', 'Send the opposite value, so false while the button is held and true once '
         'it is released.', hold_only=True))

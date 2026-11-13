@@ -10,7 +10,7 @@ from python_qt_binding.QtCore import QRectF, QSize, Qt, Signal, Slot
 from python_qt_binding.QtGui import QBrush, QColor, QIcon, QPainter, QPalette, QPen, QPixmap
 from python_qt_binding.QtWidgets import (QCheckBox, QColorDialog, QDialog, QDialogButtonBox,
                                          QDoubleSpinBox, QFormLayout, QHBoxLayout, QLabel,
-                                         QLineEdit, QPushButton, QStyle, QToolButton,
+                                         QLineEdit, QPushButton, QSpinBox, QStyle, QToolButton,
                                          QVBoxLayout, QWidget)
 
 
@@ -226,6 +226,8 @@ class ButtonSettingsDialog(QDialog):
                 values[name] = widget.isChecked()
             elif isinstance(widget, QDoubleSpinBox):
                 values[name] = widget.value()
+            elif isinstance(widget, QSpinBox):
+                values[name] = widget.value()
             else:
                 values[name] = widget.text().strip()
         return replace(self._settings, **values)
@@ -240,7 +242,15 @@ class ButtonSettingsDialog(QDialog):
             widget = QCheckBox(self)
             widget.setChecked(bool(value))
             return widget
-        if item.type in (int, float):
+        if item.type is int:
+            limits = metadata['limits']
+            widget = QSpinBox(self)
+            widget.setRange(int(limits[0]), int(limits[1]))
+            widget.setSingleStep(int(metadata['step']))
+            widget.setSuffix(metadata.get('suffix', ''))
+            widget.setValue(value)
+            return widget
+        if item.type is float:
             limits = metadata['limits']
             widget = QDoubleSpinBox(self)
             widget.setRange(limits[0], limits[1])
