@@ -4,12 +4,19 @@
 """What the text plugin shows, built from the settings and the message that arrived."""
 
 from dataclasses import dataclass
-from typing import Any, Optional, Tuple
+from typing import Any
 
-from cras_rqt_text.text_settings import LEFT, TextSettings, TOP
+from cras_rqt_text.text_settings import LEFT, TextSettings, TOP, STANDARD
 
 # The biggest size an OverlayText message can ask the widget for, in pixels.
 MAX_PREFERRED_SIZE = 4096
+
+
+def _argb(color) -> str:
+    """Count the channels of a std_msgs/ColorRGBA in 0 to 255 instead of 0 to 1."""
+    nums = tuple(max(0, min(255, int(round(channel * 255))))
+                 for channel in (color.r, color.g, color.b, color.a))
+    return f'#{nums[3]:02x}{nums[0]:02x}{nums[1]:02x}{nums[2]:02x}'
 
 
 @dataclass
@@ -22,8 +29,8 @@ class TextFrame:
     """
 
     text: str = ''
-    color: Optional[Tuple[int, int, int, int]] = None
-    background: Optional[Tuple[int, int, int, int]] = None
+    color: str = STANDARD
+    background: str = STANDARD
     size_pt: float = 12.0
     font: str = ''
     horizontal_alignment: int = LEFT
@@ -41,13 +48,7 @@ def scaling_factor(settings: TextSettings, height: int) -> float:
     return height / max(settings.reference_height, 1)
 
 
-def _rgba(color) -> Tuple[int, int, int, int]:
-    """Count the channels of a std_msgs/ColorRGBA in 0 to 255 instead of 0 to 1."""
-    return tuple(max(0, min(255, int(round(channel * 255))))
-                 for channel in (color.r, color.g, color.b, color.a))
-
-
-def build_frame(settings: TextSettings, message: Any, height: int) -> Optional[TextFrame]:
+def build_frame(settings: TextSettings, message: Any, height: int) -> TextFrame | None:
     """
     Build what to show for the given message with the given settings.
 
@@ -83,9 +84,9 @@ def build_frame(settings: TextSettings, message: Any, height: int) -> Optional[T
         if message.text_size > 0:
             frame.size_pt = message.text_size * scale
         frame.font = message.font
-        frame.color = _rgba(message.fg_color)
+        frame.color = _argb(message.fg_color)
     if settings.take_background_from_message:
-        frame.background = _rgba(message.bg_color)
+        frame.background = _argb(message.bg_color)
     if settings.take_layout_from_message:
         frame.horizontal_alignment = message.horizontal_alignment
         frame.vertical_alignment = message.vertical_alignment

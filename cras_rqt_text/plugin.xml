@@ -6,8 +6,7 @@ SPDX-FileCopyrightText: Czech Technical University in Prague
 <library path="src">
   <class name="Text" type="cras_rqt_text.text.Text" base_class_type="rqt_gui_py::Plugin">
     <description>
-      RQt plugin showing text coming from a std_msgs/String or
-      rviz_2d_overlay_msgs/OverlayText topic, with the markup in the text interpreted.
+      An RQt plugin showing a HTML markup coming from a std_msgs/String or rviz_2d_overlay_msgs/OverlayText topic.
     </description>
     <qtgui>
       <group>

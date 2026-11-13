@@ -5,7 +5,10 @@
 
 import re
 
-from cras_rqt_text.text_settings import CENTER, LEFT, RIGHT
+from python_qt_binding.QtGui import QColor
+
+from cras_rqt_text.text_frame import TextFrame
+from cras_rqt_text.text_settings import CENTER, LEFT, RIGHT, STANDARD
 
 ALIGNMENT_CSS = {LEFT: 'left', CENTER: 'center', RIGHT: 'right'}
 
@@ -13,9 +16,9 @@ ALIGNMENT_CSS = {LEFT: 'left', CENTER: 'center', RIGHT: 'right'}
 STRAY_BRACKET = re.compile('<(?![a-zA-Z/!])')
 
 
-def css_color(color) -> str:
+def css_color(color: QColor) -> str:
     """Write the color as a CSS rgba() value."""
-    red, green, blue, alpha = color
+    red, green, blue, alpha = color.red(), color.green(), color.blue(), color.alpha()
     return f'rgba({red}, {green}, {blue}, {alpha / 255:.3f})'
 
 
@@ -30,16 +33,16 @@ def markup(text: str) -> str:
     return escaped.replace('\r\n', '\n').replace('\r', '\n').replace('\n', '<br/>')
 
 
-def build_html(frame) -> str:
+def build_html(frame: TextFrame) -> str:
     """
     Write the frame as one HTML block.
 
     The style goes to a wrapping element, so that any markup the text itself carries wins over it.
     """
     style = ['margin: 0', 'padding: 0', f'font-size: {frame.size_pt:g}pt']
-    if frame.color is not None:
+    if frame.color is not None and frame.color != STANDARD:
         # Without a color, the text is shown in whatever color the widget writing it uses.
-        style.append(f'color: {css_color(frame.color)}')
+        style.append(f'color: {css_color(QColor(frame.color))}')
     style.append(f'text-align: {ALIGNMENT_CSS.get(frame.horizontal_alignment, "left")}')
     font = frame.font.strip().strip('\'"')
     if font:

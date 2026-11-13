@@ -14,17 +14,6 @@ from python_qt_binding.QtCore import QSize
 from python_qt_binding.QtGui import QColor, QPainter, QPalette, QTextDocument
 from python_qt_binding.QtWidgets import QDialog, QSizePolicy, QWidget
 
-try:
-    # Qt6
-    Expanding = QSizePolicy.Policy.Expanding
-    Window = QPalette.ColorRole.Window
-    WindowText = QPalette.ColorRole.WindowText
-except AttributeError:
-    # Qt5
-    Expanding = QSizePolicy.Expanding
-    Window = QPalette.Window
-    WindowText = QPalette.WindowText
-
 
 class TextWidget(QWidget):
     """
@@ -45,7 +34,7 @@ class TextWidget(QWidget):
         super().__init__(parent)
         self.setObjectName('cras_rqt_text__Text')
         self.setWindowTitle('Text')
-        self.setSizePolicy(Expanding, Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._settings = TextSettings()
         self._message = None
         self._preferred_size = None
@@ -57,7 +46,7 @@ class TextWidget(QWidget):
 
     def open_configuration(self) -> None:
         """Let the user change the topic, the message type and the text appearance."""
-        dialog = TextSettingsDialog(self._settings, self, self._standard_colors())
+        dialog = TextSettingsDialog(self._settings, self)
         if dialog.exec() != QDialog.Accepted:
             return
         self._settings = dialog.settings()
@@ -88,7 +77,7 @@ class TextWidget(QWidget):
         if frame is None:
             painter.fillRect(self.rect(), self.palette().color(QPalette.Window))
             return
-        background = QColor(*frame.background)
+        background = QColor(frame.background) if frame.background else self.palette().color(QPalette.Window)
         if background.alpha() < 255:
             # Paint the plain widget background first, so that a translucent background does not
             # leave anything of the text shown before behind.
@@ -118,24 +107,7 @@ class TextWidget(QWidget):
         self.update()
 
     def _frame(self):
-        frame = build_frame(self._settings, self._message, self.height())
-        if frame is not None:
-            standard = self._standard_colors()
-            if frame.color is None:
-                frame.color = standard['text_color']
-            if frame.background is None:
-                frame.background = standard['background_color']
-        return frame
-
-    def _standard_colors(self) -> Dict[str, Tuple[int, int, int, int]]:
-        """
-        Read the colors of any other rqt widget, for the settings that ask for no color.
-
-        The colors come from the palette, so a dark rqt gets a dark text widget too.
-        """
-        palette = self.palette()
-        return {'text_color': palette.color(WindowText).getRgb(),
-                'background_color': palette.color(Window).getRgb()}
+        return build_frame(self._settings, self._message, self.height())
 
     @staticmethod
     def _preferred_size_of(frame) -> Optional[QSize]:

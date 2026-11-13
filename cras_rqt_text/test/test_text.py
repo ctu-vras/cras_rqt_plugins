@@ -6,20 +6,18 @@
 import os
 import time
 
-if not os.environ.get('DISPLAY') and not os.environ.get('WAYLAND_DISPLAY'):
-    # The tests build real widgets, and a headless machine has no screen to build them on.
-    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
 from cras_rqt_text.text_frame import build_frame, MAX_PREFERRED_SIZE, scaling_factor  # noqa: E402
 from cras_rqt_text.text_frame import TextFrame  # noqa: E402
 from cras_rqt_text.text_html import build_html, css_color, markup  # noqa: E402
-from cras_rqt_text.text_settings import (BOTTOM, CENTER, format_color, LEFT,  # noqa: E402
+from cras_rqt_text.text_settings import (BOTTOM, CENTER, LEFT,  # noqa: E402
                                          OVERLAY_TYPE, parse_color, RIGHT, STRING_TYPE,
                                          TextSettings, TOP)
 from cras_rqt_text.text_settings_dialog import TextSettingsDialog  # noqa: E402
 from cras_rqt_text.text_widget import TextWidget  # noqa: E402
 import pytest  # noqa: E402
-from python_qt_binding.QtGui import QColor, QImage, QTextDocument  # noqa: E402
+from python_qt_binding.QtGui import QColor, QImage, QPalette, QTextDocument  # noqa: E402
 from python_qt_binding.QtWidgets import QApplication  # noqa: E402
 import rclpy  # noqa: E402
 from rclpy.executors import SingleThreadedExecutor  # noqa: E402
@@ -27,11 +25,6 @@ from rclpy.node import Node  # noqa: E402
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy  # noqa: E402
 from rviz_2d_overlay_msgs.msg import OverlayText  # noqa: E402
 from std_msgs.msg import ColorRGBA, String  # noqa: E402
-
-try:
-    Format_ARGB32 = QImage.Format.Format_ARGB32
-except AttributeError:
-    Format_ARGB32 = QImage.Format_ARGB32
 
 BEST_EFFORT = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.BEST_EFFORT,
                          durability=QoSDurabilityPolicy.VOLATILE)
@@ -169,7 +162,7 @@ def shown(widget: TextWidget):
 
 def painted(widget: TextWidget) -> QImage:
     """Grab what the widget paints."""
-    image = QImage(widget.width(), widget.height(), Format_ARGB32)
+    image = QImage(widget.width(), widget.height(), QImage.Format.Format_ARGB32)
     image.fill(QColor('magenta'))
     widget.render(image)
     return image
@@ -199,7 +192,7 @@ def test_defaults_listen_for_plain_strings():
 def test_settings_survive_a_round_through_rqt_settings():
     settings = TextSettings(topic='my/text', message_type=OVERLAY_TYPE, default_text='hello',
                             text_size_pt=42.0, scale_with_widget=True, reference_height=480,
-                            text_color=(1, 2, 3, 4), background_color=(5, 6, 7, 8),
+                            text_color='#01020304', background_color='#05060708',
                             horizontal_alignment=CENTER, vertical_alignment=BOTTOM,
                             take_style_from_message=False, take_background_from_message=False,
                             take_layout_from_message=False)
@@ -223,29 +216,16 @@ def test_an_empty_topic_stays_empty_but_junk_falls_back():
     assert not settings.take_style_from_message
 
 
-@pytest.mark.parametrize('given, expected', [
-    ('#f09', (255, 0, 153, 255)),
-    ('#112233', (17, 34, 51, 255)),
-    ('#112233ff', (17, 34, 51, 255)),
-    ('#11223300', (17, 34, 51, 0)),
-    ((10, 20, 30), (10, 20, 30, 255)),
-    ('burundy', (9, 9, 9, 9)),
-])
-def test_colors_have_one_text_form(given, expected):
-    assert parse_color(given, (9, 9, 9, 9)) == expected
-    assert parse_color(format_color(expected), (0, 0, 0, 0)) == expected
-
-
 def test_a_color_left_unset_is_kept_unset_through_a_round_and_shows_no_color():
     settings = TextSettings()
-    assert settings.text_color is None
-    assert settings.background_color is None
+    assert settings.text_color == ''
+    assert settings.background_color == ''
     proxy = SettingsProxy()
     settings.save(proxy)
     assert proxy.values['text_color'] == ''
     assert TextSettings.load(proxy) == settings
-    assert parse_color('', None) is None
-    assert parse_color(None, None) is None
+    assert parse_color('', None) == ''
+    assert parse_color(None, None) == ''
     assert 'color' not in build_html(TextFrame(text='text'))
 
 
@@ -256,11 +236,11 @@ def test_the_markup_of_the_text_survives_and_a_stray_bracket_does_not_eat_it():
 
 
 def test_the_alpha_of_a_color_goes_to_css():
-    assert css_color((255, 0, 0, 128)) == 'rgba(255, 0, 0, 0.502)'
+    assert css_color(QColor(255, 0, 0, 128)) == 'rgba(255, 0, 0, 0.502)'
 
 
 def test_the_style_of_the_text_leaves_room_for_the_style_of_the_message():
-    html = build_html(TextFrame(text='hi <big>there</big>', color=(1, 2, 3, 255), size_pt=24.5,
+    html = build_html(TextFrame(text='hi <big>there</big>', color='#010203ff', size_pt=24.5,
                                 font='Monospace', horizontal_alignment=CENTER))
     assert 'font-size: 24.5pt' in html
     assert "font-family: 'Monospace'" in html
@@ -270,19 +250,19 @@ def test_the_style_of_the_text_leaves_room_for_the_style_of_the_message():
 
 
 def test_a_string_is_shown_with_the_configured_appearance():
-    settings = TextSettings(text_size_pt=20.0, text_color=(1, 2, 3, 255),
-                            background_color=(4, 5, 6, 255), horizontal_alignment=RIGHT,
+    settings = TextSettings(text_size_pt=20.0, text_color='#010203ff',
+                            background_color='#040506ff', horizontal_alignment=RIGHT,
                             vertical_alignment=BOTTOM)
     frame = build_frame(settings, 'a string', 100)
     assert frame.text == 'a string'
-    assert (frame.color, frame.background) == ((1, 2, 3, 255), (4, 5, 6, 255))
+    assert (frame.color, frame.background) == ('#010203ff', '#040506ff')
     assert (frame.horizontal_alignment, frame.vertical_alignment) == (RIGHT, BOTTOM)
     assert frame.size_pt == 20.0
 
 
 def test_a_text_without_colors_of_its_own_asks_for_the_ones_rqt_uses():
     frame = build_frame(TextSettings(), 'a string', 100)
-    assert (frame.color, frame.background) == (None, None)
+    assert (frame.color, frame.background) == ('', '')
 
 
 def test_the_default_text_is_shown_before_anything_arrives():
@@ -301,8 +281,8 @@ def test_the_text_grows_with_the_widget_only_when_asked_for():
 def test_an_overlay_text_bring_its_own_appearance_and_place():
     frame = build_frame(TextSettings(), overlay_message(), 100)
     assert frame.text == 'the text'
-    assert frame.color == (255, 0, 0, 128)
-    assert frame.background == (0, 255, 0, 255)
+    assert frame.color == '#80ff0000'
+    assert frame.background == '#ff00ff00'
     assert frame.size_pt == 30.0
     assert frame.font == 'Monospace'
     assert (frame.horizontal_alignment, frame.vertical_alignment) == (RIGHT, BOTTOM)
@@ -348,7 +328,7 @@ def test_qt_shows_the_markup_of_the_text(spinning):
 
 def test_qt_shows_the_configured_style_of_the_text(spinning):
     document = QTextDocument()
-    document.setHtml(build_html(TextFrame(text='text', color=(255, 0, 0, 255), size_pt=30.0,
+    document.setHtml(build_html(TextFrame(text='text', color='#ffff0000', size_pt=30.0,
                                           font='Monospace')))
     style = document.firstBlock().charFormat()
     assert style.fontPointSize() == 30.0
@@ -373,32 +353,30 @@ def test_qt_leaves_the_markup_of_a_message_alone(spinning):
 
 def test_the_widget_falls_back_to_the_colors_of_any_rqt_widget(spinning):
     widget = make_widget(spinning, default_text='waiting for text')
-    standard = widget._standard_colors()
-    background = QColor(*standard['background_color'])
+    background = widget.palette().color(QPalette.ColorRole.Window)
     image = painted(widget)
     assert image.pixelColor(image.width() - 2, image.height() - 2) == background
-    assert shown(widget).color == standard['text_color']
+    assert shown(widget).color == ''
     assert inked(image, background)
 
 
 def test_the_settings_dialog_keeps_the_colors_it_was_given(spinning):
     widget = make_widget(spinning, default_text='waiting for text')
-    dialog = TextSettingsDialog(widget._settings, widget, widget._standard_colors())
+    dialog = TextSettingsDialog(widget._settings, widget)
     assert dialog.settings() == widget._settings
 
 
 def test_the_settings_dialog_can_go_back_to_the_standard_colors(spinning):
     widget = make_widget(spinning, default_text='waiting for text')
-    dialog = TextSettingsDialog(widget._settings, widget, widget._standard_colors())
+    dialog = TextSettingsDialog(widget._settings, widget)
     color = dialog._widgets['text_color']
-    assert 'standard' in color._swatch.text()
-    assert not color._standard_button.isEnabled()
-    color._color = (10, 20, 30, 255)
-    color._show_color()
-    assert dialog.settings().text_color == (10, 20, 30, 255)
-    assert color._standard_button.isEnabled()
-    color._use_standard_color()
-    assert dialog.settings().text_color is None
+    assert color.color() == ''
+    assert not color._clear.isEnabled()
+    color._button.set_color(QColor(10, 20, 30, 255))
+    assert dialog.settings().text_color == QColor(10, 20, 30, 255).name(QColor.NameFormat.HexArgb)
+    assert color._clear.isEnabled()
+    color._button.set_color(None)
+    assert dialog.settings().text_color == ''
 
 
 def test_the_default_text_is_painted_over_the_configured_background(spinning):

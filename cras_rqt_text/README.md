@@ -5,8 +5,7 @@ SPDX-License-Identifier: BSD-3-Clause
 SPDX-FileCopyrightText: Czech Technical University in Prague
 -->
 
-An RQt plugin showing a text coming from a ROS topic, so that a node can tell the operator what is going on without
-anybody having to read a log. It subscribes either to `std_msgs/String`, whose data are the text to show, or to
+An RQt plugin showing a text coming from a ROS topic. It subscribes either to `std_msgs/String` or to
 `rviz_2d_overlay_msgs/OverlayText`, and it shows the text as rich text, so the HTML markup both message types can
 carry is interpreted: `<b>bold</b>`, `<i>italic</i>`, `<u>underlined</u>`, `<font color="#ff0000"
 size="24">red and big</font>`, `<span style="color: lime">CSS colors</span>`, `<br/>` and paragraphs all come out
@@ -36,10 +35,8 @@ they do not vanish.
 
 Both colors default to the colors any other rqt widget has, taken from its palette, so a freshly opened plugin looks
 like the rest of rqt and follows its light or dark theme. The configuration dialog shows that color on the button and
-offers a *Standard* button to get back to it. An explicit color can be written as `#f09`, `#ff0000` or `#ff000080`
-(the last two digits being the alpha), and a color whose alpha is below 255 is blended over the plain widget
-background, so a translucent overlay background does not leave anything of the previous text behind. An empty `topic`
-is a valid setting: the plugin then shows the default text and listens to nothing.
+offers a *Standard* button to get back to it. An explicit color can be written as `#ff000080`
+(the first two digits being the alpha). Empty `topic` is a valid setting: the plugin then just shows the default text.
 
 Until the first message arrives, the widget shows the default text with the configured appearance, so that a freshly
 opened plugin does not look broken. An OverlayText message brings its own appearance and position along, and the
@@ -55,7 +52,7 @@ configured, the plugin says so in the log, because nothing else would ever show 
 
 ## Running it
 
-Start the plugin by picking *Plugins &rarr; Robot Tools &rarr; Text* inside RQt, or on its own by
+Start the plugin by picking *Plugins &rarr; Visualization &rarr; Text* inside RQt, or on its own by
 
 ```
 ros2 run cras_rqt_text cras_rqt_text
@@ -69,11 +66,3 @@ ros2 topic pub --once /overlay_text std_msgs/msg/String "{data: 'battery <font c
 
 The settings live in the perspective RQt stores, and are changed in the RQt configuration dialog, opened by the gear
 button in the dock of the plugin. Several instances can be open at once, each with its own topic and appearance.
-
-## Building and testing
-
-Build the package by `./build.sh --packages-select cras_rqt_text` in the root of the `common2` workspace (the
-folder that contains this `src` directory). RQt caches the plugins it has found, so after a fresh build let it look
-again by `rqt_gui --force-discover`. The tests check the settings, the markup and the placement of the text, and
-also drive the widget against real ROS topics, publishing both plain strings and latched OverlayText messages; run
-them by `python3 -m pytest test/test_text.py` in this folder, with the workspace and a ROS 2 distribution sourced.

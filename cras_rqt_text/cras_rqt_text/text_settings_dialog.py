@@ -5,102 +5,179 @@
 
 from dataclasses import fields
 
-from cras_rqt_text.text_settings import format_color, OVERLAY_TYPE, parse_color, TextSettings
-from python_qt_binding.QtGui import QColor
+from cras_rqt_text.text_settings import OVERLAY_TYPE, parse_color, STANDARD, TextSettings, to_optional_color
+from python_qt_binding.QtCore import QRectF, QSize, Qt, Signal, Slot
+from python_qt_binding.QtGui import QBrush, QColor, QIcon, QPainter, QPalette, QPen, QPixmap
 from python_qt_binding.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDialog,
                                          QDialogButtonBox, QDoubleSpinBox, QFormLayout,
-                                         QHBoxLayout, QLabel, QLineEdit, QPushButton, QSpinBox,
-                                         QVBoxLayout, QWidget)
-
-try:
-    # Qt6
-    AllNonFixedFieldsGrow = QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
-    Ok = QDialogButtonBox.StandardButton.Ok
-    Cancel = QDialogButtonBox.StandardButton.Cancel
-except AttributeError:
-    # Qt5
-    AllNonFixedFieldsGrow = QFormLayout.AllNonFixedFieldsGrow
-    Ok = QDialogButtonBox.Ok
-    Cancel = QDialogButtonBox.Cancel
-
-# What to show as the standard color when nobody says what the standard color of the widget is.
-BLACK = (0, 0, 0, 255)
+                                         QHBoxLayout, QLabel, QLineEdit, QPushButton, QSpinBox, QStyle,
+                                         QToolButton, QVBoxLayout, QWidget)
 
 
-class ColorButton(QWidget):
+COLOR_BUTTON_WIDTH = 130  # px, wide enough to be a comfortable target for a finger
+CHIP_WIDTH = 40  # px, the chip of the color the color selection shows
+CHIP_HEIGHT = 18  # px
+CHIP_GAP = 8  # px, the space between the chip and the color written next to it
+CHIP_CORNER = 3  # px
+CLEAR_BUTTON_WIDTH = 34  # px
+# what the color selection says while the button is painted the way an ordinary Qt button is
+STANDARD_LABEL = 'Standard'
+CLEAR_TIP = 'Use a default color.'
+# only used when the Qt style has no icon to clear with, which is not expected to happen
+CLEAR_FALLBACK_TEXT = '×'
+
+
+def clear_icon(style) -> QIcon:
     """
-    A button showing a color, asking for a new one when it is clicked.
+    Return the icon of a button that clears something.
 
-    A color does not have to be picked at all, in which case the widget shows the text in the
-    colors any other rqt widget uses, and says so on the button.
+    This is the icon a line edit clears itself with, so that clearing the color is understood the
+    same way as clearing a field next to it.
+    """
+    if hasattr(QStyle, 'SP_LineEditClearButton'):
+        icon = style.standardIcon(QStyle.SP_LineEditClearButton)
+        if not icon.isNull():
+            return icon
+    return QIcon.fromTheme('edit-clear')
+
+
+def color_chip(color: QColor | None, parent: QWidget = None) -> QIcon:
+    """
+    Paint a chip with the given color.
+
+    :param color: the color of the chip, ``None`` for a chip that stands for the color an ordinary
+        Qt button is painted with
+    :param parent: the widget whose colors are used to paint the empty chip
+    """
+    pixmap = QPixmap(CHIP_WIDTH + CHIP_GAP, CHIP_HEIGHT)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    area = QRectF(0.5, 0.5, CHIP_WIDTH - 1.0, CHIP_HEIGHT - 1.0)
+    if color is None:
+        # a dashed outline, the way a line edit shows it holds nothing
+        palette = parent.palette() if parent is not None else QPalette()
+        painter.setBrush(palette.brush(QPalette.ColorRole.Button))
+        pen = QPen(palette.color(QPalette.ColorRole.Text))
+        pen.setStyle(Qt.PenStyle.DashLine)
+        painter.setPen(pen)
+    else:
+        painter.setBrush(QBrush(color))
+        painter.setPen(QPen(color.darker(150)))
+    painter.drawRoundedRect(area, CHIP_CORNER, CHIP_CORNER)
+    painter.end()
+    return QIcon(pixmap)
+
+
+class ColorButton(QPushButton):
+    """
+    A button that shows the color it holds as a chip of that color and opens a color chooser.
+
+    No color at all is one of the colors to choose, and it means that the button is painted the way
+    an ordinary Qt button is.
     """
 
-    def __init__(self, color, standard: tuple = None, parent=None):
+    # the color that is shown now, whenever it changes; empty for an ordinary Qt button
+    color_changed = Signal(str)
+
+    def __init__(self, color: QColor | str | None, parent: QWidget = None):
         super().__init__(parent)
-        self._standard = parse_color(standard, BLACK)
-        self._color = parse_color(color, self._standard) if color is not None else None
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self._swatch = QPushButton(self)
-        self._swatch.clicked.connect(self._ask_for_color)
-        self._standard_button = QPushButton('Standard', self)
-        self._standard_button.clicked.connect(self._use_standard_color)
-        layout.addWidget(self._swatch)
-        layout.addWidget(self._standard_button)
+        self._color = to_optional_color(color)
+        self.setMinimumWidth(COLOR_BUTTON_WIDTH)
+        # the style would otherwise shrink the chip to its idea of an icon
+        self.setIconSize(QSize(CHIP_WIDTH + CHIP_GAP, CHIP_HEIGHT))
+        self.clicked.connect(self._pick_color)
         self._show_color()
 
-    def color(self):
-        """
-        Give the color the user picked, or ``None`` for the one rqt uses here.
+    def color(self) -> str:
+        """Return the color as a hex string, empty for an ordinary Qt button."""
+        return STANDARD if self._color is None else self._color.name(QColor.NameFormat.HexArgb)
 
-        The color is given as red, green, blue and alpha from 0 to 255.
-        """
-        return self._color
-
-    def _ask_for_color(self) -> None:
-        color = QColorDialog.getColor(QColor(*self._shown_color()), self, 'Choose a color',
-                                      QColorDialog.ShowAlphaChannel)
-        if not color.isValid():
-            return
-        self._color = (color.red(), color.green(), color.blue(), color.alpha())
+    def set_color(self, color: QColor | str | None) -> None:
+        """Show the given color; an empty one stands for the color of an ordinary Qt button."""
+        self._color = to_optional_color(color)
         self._show_color()
+        self.color_changed.emit(self.color())
 
-    def _use_standard_color(self) -> None:
-        self._color = None
-        self._show_color()
-
-    def _shown_color(self) -> tuple:
-        return self._color if self._color is not None else self._standard
+    @Slot()
+    def _pick_color(self) -> None:
+        current = self._color if self._color is not None else QColor('gray')
+        # the chooser is opened over the dialog it belongs to rather than over this button, so that
+        # it cannot end up looking like the color field it was opened from
+        chosen = QColorDialog.getColor(current, self.window(), 'Choose color')
+        if chosen.isValid():
+            self.set_color(chosen)
 
     def _show_color(self) -> None:
-        """Show the chosen color on the button, readable over both light and dark colors."""
-        shown = self._shown_color()
-        standard = '' if self._color is not None else ' (standard)'
-        self._swatch.setText(f'{format_color(shown)}{standard}')
-        # Write dark text over a light swatch and light text over a dark one.
-        light = sum(shown[:3]) > 3 * 127
-        on_top = '#000000' if light else '#ffffff'
-        self._swatch.setStyleSheet(
-            f'background-color: {format_color(shown[:3])}; color: {on_top};')
-        self._standard_button.setEnabled(self._color is not None)
-        self._standard_button.setToolTip(
-            f'Use the color every other rqt widget has here, {format_color(self._standard)}')
+        # The button is left the way the Qt style paints it on purpose: a style sheet set on a
+        # widget reaches everything inside it, and that would include the color chooser opened
+        # from it. Only the chip of the color is painted, and that is an image, not a widget.
+        self.setIcon(color_chip(self._color, self))
+        self.setText(STANDARD_LABEL if self._color is None else self._color.name())
+
+
+class ColorEditor(QWidget):
+    """
+    A color to pick, with a button that clears it back to an ordinary Qt button.
+
+    The color is shown as a chip of the color itself, so that the field cannot be mistaken for the
+    button next to it. The button that clears the color has nothing to do while the button already
+    has the standard look, so it waits disabled until there is a color to clear away.
+    """
+
+    def __init__(self, color, parent: QWidget = None):
+        super().__init__(parent)
+        self._button = ColorButton(color, self)
+        self._button.color_changed.connect(self._color_shown)
+        self._clear = QToolButton(self)
+        self._clear.setToolTip(CLEAR_TIP)
+        self._clear.setMinimumWidth(CLEAR_BUTTON_WIDTH)
+        icon = clear_icon(self.style())
+        if icon.isNull():
+            self._clear.setText(CLEAR_FALLBACK_TEXT)
+        else:
+            self._clear.setIcon(icon)
+        self._clear.clicked.connect(self._use_standard)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._button)
+        layout.addWidget(self._clear)
+        self._color_shown(self._button.color())
+
+    def color(self) -> str:
+        """Return the color as a hex string, empty for an ordinary Qt button."""
+        return self._button.color()
+
+    def set_color(self, color: QColor | str | None) -> None:
+        """Show the given color; an empty one stands for the color of an ordinary Qt button."""
+        self._button.set_color(color)
+
+    def setToolTip(self, tip: str | None) -> None:
+        # the two buttons fill the whole editor, so a tip that only the editor itself knows would
+        # be nearly impossible to bring up
+        super().setToolTip(tip)
+        self._button.setToolTip(tip)
+
+    @Slot(str)
+    def _color_shown(self, color: str) -> None:
+        # there is something to clear only while the button has a color of its own, and that also
+        # counts for a color picked in the chooser, which never goes through set_color
+        self._clear.setEnabled(color != STANDARD)
+
+    @Slot()
+    def _use_standard(self) -> None:
+        self.set_color(None)
 
 
 class TextSettingsDialog(QDialog):
     """A dialog asking for the topic, the message type and the text appearance to use."""
 
-    def __init__(self, settings: TextSettings, parent=None, standard_colors: dict = None):
+    def __init__(self, settings: TextSettings, parent=None):
         """
         Show the settings, with the colors of the widget ready for the settings that have none.
-
-        :param standard_colors: the colors of the widget the settings belong to, by setting name,
-            to show and to go back to where a setting asks for no color of its own.
         """
         super().__init__(parent)
         self.setWindowTitle('Text configuration')
-        self._standard_colors = standard_colors or {}
         self._widgets = {}
         self._overlay_widgets = []
         overlay_label = None
@@ -116,10 +193,9 @@ class TextSettingsDialog(QDialog):
                 if section == 'OverlayText':
                     overlay_label = heading
             form = QFormLayout()
-            form.setFieldGrowthPolicy(AllNonFixedFieldsGrow)
+            form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
             for item in items:
-                widget = self._create_widget(item, getattr(settings, item.name),
-                                             self._standard_colors.get(item.name))
+                widget = self._create_widget(item, getattr(settings, item.name))
                 widget.setToolTip(item.metadata.get('description', ''))
                 self._widgets[item.name] = widget
                 if section == 'OverlayText':
@@ -131,7 +207,7 @@ class TextSettingsDialog(QDialog):
         self._widgets['message_type'].currentIndexChanged.connect(self._show_overlay_settings)
         self._show_overlay_settings()
 
-        buttons = QDialogButtonBox(Ok | Cancel)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -145,7 +221,7 @@ class TextSettingsDialog(QDialog):
                 values[name] = widget.isChecked()
             elif isinstance(widget, QComboBox):
                 values[name] = widget.currentData()
-            elif isinstance(widget, ColorButton):
+            elif isinstance(widget, ColorEditor):
                 values[name] = widget.color()  # None stays None, meaning the standard color
             elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
                 values[name] = widget.value()
@@ -153,7 +229,7 @@ class TextSettingsDialog(QDialog):
                 values[name] = widget.text().strip()
         return TextSettings(**values)
 
-    def _create_widget(self, item, value, standard=None):
+    def _create_widget(self, item, value):
         metadata = item.metadata
         kind = metadata['kind']
         if kind == 'flag':
@@ -169,7 +245,7 @@ class TextSettingsDialog(QDialog):
             widget.setCurrentIndex(index if index >= 0 else 0)
             return widget
         if kind == 'color':
-            return ColorButton(value, standard, self)
+            return ColorEditor(value, self)
         if kind == 'number':
             limits = metadata['limits']
             widget = QSpinBox(self) if item.type is int else QDoubleSpinBox(self)

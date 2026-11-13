@@ -4,7 +4,9 @@
 """Configurable topic, message type and text appearance of the text plugin."""
 
 from dataclasses import dataclass, field, fields
-from typing import Any, Optional, Tuple
+from typing import Any
+
+from python_qt_binding.QtGui import QColor
 
 STRING_TYPE = 'std_msgs/msg/String'
 OVERLAY_TYPE = 'rviz_2d_overlay_msgs/msg/OverlayText'
@@ -23,6 +25,26 @@ VERTICAL_OPTIONS = ((TOP, 'Top'), (CENTER, 'Center'), (BOTTOM, 'Bottom'))
 
 HEX_DIGITS = '0123456789abcdefABCDEF'
 
+STANDARD = ''
+
+
+def to_optional_color(value: QColor | str | None) -> QColor | None:
+    """
+    Interpret the given value as a color that the button may also not have at all.
+
+    An empty value stands for ``None``, which means that the button is painted the way an ordinary
+    Qt button is, and anything that cannot be understood is treated the same way rather than
+    making the button end up in a color nobody asked for.
+    """
+    if value is None:
+        return None
+    if isinstance(value, QColor):
+        return QColor(value)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    color = QColor(value)
+    return color if color.isValid() else None
+
 
 def _setting(label: str, description: str, section: str, kind: str, **extra) -> dict:
     """Describe to the configuration dialog what to ask for."""
@@ -31,12 +53,12 @@ def _setting(label: str, description: str, section: str, kind: str, **extra) -> 
     return metadata
 
 
-def _choice(label: str, description: str, section: str, options: Tuple) -> dict:
+def _choice(label: str, description: str, section: str, options: tuple) -> dict:
     return _setting(label, description, section, 'choice', options=options)
 
 
 def _number(label: str, description: str, section: str, suffix: str, decimals: int,
-            limits: Tuple[float, float], step: float) -> dict:
+            limits: tuple[float, float], step: float) -> dict:
     return _setting(label, description, section, 'number', suffix=suffix, decimals=decimals,
                     limits=limits, step=step)
 
@@ -54,39 +76,17 @@ def _channel(value: Any) -> int:
     return min(max(int(round(float(value))), 0), 255)
 
 
-def parse_color(value: Any, default: Optional[Tuple[int, int, int, int]]
-                ) -> Optional[Tuple[int, int, int, int]]:
+def parse_color(value: Any, default: str) -> str:
     """
-    Read a color written as ``#rgb``, ``#rgba``, ``#rrggbb`` or ``#rrggbbaa``.
+    Read a color written as ``#rrggbb`` or ``#aarrggbb``.
 
     :param value: what to parse; anything else than the supported forms gives ``default``.
+    :param default: the default color to use if ``value`` is not a valid color.
     """
-    if value is None:
-        return default
-    if isinstance(value, (tuple, list)):
-        channels = tuple(_channel(channel) for channel in value[:4])
-        return channels if len(channels) == 4 else (*channels, 255)
-    text = str(value).strip().lstrip('#')
-    if len(text) in (3, 4, 6, 8) and all(character in HEX_DIGITS for character in text):
-        if len(text) in (3, 4):
-            text = ''.join(character * 2 for character in text)
-        channels = tuple(int(text[index:index + 2], 16) for index in range(0, len(text), 2))
-        return channels if len(channels) == 4 else (*channels, 255)
-    return default
-
-
-def format_color(color: Optional[Tuple[int, int, int, int]]) -> str:
-    """
-    Write a color back in the form :func:`parse_color` understands.
-
-    A color left for the widget to pick is written as nothing, so that it is read back as such.
-    """
-    if color is None:
-        return ''
-    channels = tuple(_channel(channel) for channel in color)
-    if len(channels) < 4:
-        return f'#{channels[0]:02x}{channels[1]:02x}{channels[2]:02x}'
-    return f'#{channels[0]:02x}{channels[1]:02x}{channels[2]:02x}{channels[3]:02x}'
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return STANDARD  # no color of its own, so the Qt style decides how the item looks
+    color = to_optional_color(value)
+    return color.name(QColor.NameFormat.HexArgb) if color is not None else default
 
 
 def _to_bool(value: Any, default: bool) -> bool:
@@ -99,7 +99,7 @@ def _to_bool(value: Any, default: bool) -> bool:
     return bool(value)
 
 
-def _to_number(value: Any, default, limits: Tuple[float, float], cast):
+def _to_number(value: Any, default, limits: tuple[float, float], cast):
     try:
         number = cast(value)
     except (TypeError, ValueError):
@@ -112,7 +112,7 @@ def _to_text(value: Any, default: str) -> str:
     return default if value is None else str(value).strip()
 
 
-def _to_choice(value: Any, default, options: Tuple):
+def _to_choice(value: Any, default, options: tuple):
     if value is None:
         return default
     for option, _ in options:
@@ -145,10 +145,10 @@ class TextSettings:
     reference_height: int = field(default=200, metadata=_number(
         'Reference height', 'Widget height the text size setting holds for when the text scales '
         'with the widget size.', 'Text', ' px', 0, (10, 10000), 10))
-    text_color: Optional[Tuple[int, int, int, int]] = field(default=None, metadata=_color(
+    text_color: str = field(default=STANDARD, metadata=_color(
         'Text color', 'Color of the text. Leave it unset to use the color rqt writes its own '
         'text with. Markup in the text can override the color either way.', 'Text'))
-    background_color: Optional[Tuple[int, int, int, int]] = field(default=None, metadata=_color(
+    background_color: str = field(default=STANDARD, metadata=_color(
         'Background color', 'Color the whole widget is filled with before the text is drawn. '
         'Leave it unset to use the background of any other rqt widget, and set it fully '
         'transparent to show the text over whatever is behind the widget.', 'Text'))
@@ -181,10 +181,7 @@ class TextSettings:
     def save(self, settings) -> None:
         """Store all values in the given rqt settings proxy."""
         for item in fields(self):
-            value = getattr(self, item.name)
-            if item.metadata['kind'] == 'color':
-                value = format_color(value)
-            settings.set_value(item.name, value)
+            settings.set_value(item.name, getattr(self, item.name))
 
     @classmethod
     def load(cls, settings) -> 'TextSettings':

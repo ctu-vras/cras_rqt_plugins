@@ -5,8 +5,11 @@
 
 from cras_rqt_text.text_settings import TextSettings
 from python_qt_binding.QtCore import QObject, Signal
+from rclpy.clock import Clock
+from rclpy.clock_type import ClockType
 from rclpy.node import Node
-from rclpy.qos import (qos_profile_system_default, QoSHistoryPolicy, QoSProfile)
+from rclpy.qos import (qos_profile_system_default, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy,
+                       QoSDurabilityPolicy)
 from rosidl_runtime_py.utilities import get_message
 
 # What a topic nobody publishes on (or nobody publishes in the configured type on) offers.
@@ -40,7 +43,8 @@ class TextEngine(QObject):
         self._topic = None
         self._qos_key = NO_PUBLISHERS
         self._type_warned = False
-        node.create_timer(self.DISCOVERY_PERIOD, self._discovery_cb)
+        self._steady_clock = Clock(clock_type=ClockType.STEADY_TIME)
+        self._discovery_timer = node.create_timer(self.DISCOVERY_PERIOD, self._discovery_cb, clock=self._steady_clock)
 
     def configure(self, settings: TextSettings) -> None:
         """Subscribe to what the user asked for, replacing the previous subscription."""
@@ -62,19 +66,33 @@ class TextEngine(QObject):
         try:
             return get_message(type_name)
         except Exception as exception:  # a missing or broken message package can fail any way
-            self._logger.error_throttled(
-                10.0, f'Cannot load messages of type {type_name}: {exception}. '
-                      f'Is the package that defines them installed?')
+            self._logger.error(
+                f'Cannot load messages of type {type_name}: {exception}. Is the package that defines them installed?',
+                throttle_duration_sec=10.0)
             return None
 
     def _publisher_qos(self):
         """Read the reliability and durability the publishers on the topic offer."""
+        reliabilities = set()
+        durabilities = set()
         for info in self._node.get_publishers_info_by_topic(self._topic):
             if info.topic_type != self._settings.message_type:
                 continue
             profile = info.qos_profile
-            return profile.reliability, profile.durability
-        return NO_PUBLISHERS
+            reliabilities.add(profile.reliability)
+            durabilities.add(profile.durability)
+        if not reliabilities or not durabilities:
+            return NO_PUBLISHERS
+
+        reliability = QoSReliabilityPolicy.RELIABLE
+        if QoSReliabilityPolicy.BEST_EFFORT in reliabilities:
+            reliability = QoSReliabilityPolicy.BEST_EFFORT
+
+        durability = QoSDurabilityPolicy.VOLATILE
+        if QoSDurabilityPolicy.TRANSIENT_LOCAL in durabilities:
+            durability = QoSDurabilityPolicy.TRANSIENT_LOCAL
+
+        return reliability, durability
 
     def _resubscribe(self) -> None:
         """Recreate the subscription so that it matches what is on the topic right now."""
@@ -89,8 +107,7 @@ class TextEngine(QObject):
         else:
             qos = qos_profile_system_default
             self._warn_about_type()
-        self._subscription = self._node.create_subscription(
-            self._message_class, self._topic, self._text_cb, qos)
+        self._subscription = self._node.create_subscription(self._message_class, self._topic, self._text_cb, qos)
         self._qos_key = key
 
     def _warn_about_type(self) -> None:
@@ -101,9 +118,9 @@ class TextEngine(QObject):
                  if name == self._topic for type_name in type_names}
         if types and self._settings.message_type not in types:
             self._type_warned = True
-            self._logger.warn_throttled(
-                10.0, f'Topic {self._topic} is published as {", ".join(sorted(types))}, '
-                      f'not as {self._settings.message_type}.')
+            self._logger.warning(
+                f'Topic {self._topic} is published as {', '.join(sorted(types))}, '
+                f'not as {self._settings.message_type}.', throttle_duration_sec=10.0)
 
     def _discovery_cb(self) -> None:
         if self._message_class is None or not self._topic:
