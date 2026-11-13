@@ -67,6 +67,8 @@ def test_settings_base_command_line_parser_uses_the_same_field_converters():
 
 def test_to_number_uses_default_for_invalid_values_and_clamps_limits():
     assert to_number('bad', 4, (0, 10), int) == 4
+    assert to_number('nan', 4.0, (0.0, 10.0), float) == 4.0
+    assert to_number(float('inf'), 4, (0, 10), int) == 4
     assert to_number('-2', 4, (0, 10), int) == 0
     assert to_number('12', 4, (0, 10), int) == 10
 

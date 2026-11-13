@@ -35,7 +35,9 @@ def to_number(value, default, limits: tuple[float, float], cast):
     """Parse and clamp a numeric setting, returning its default when it is malformed."""
     try:
         number = cast(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
+        return default
+    if number != number:
         return default
     return cast(min(max(number, limits[0]), limits[1]))
 

@@ -91,7 +91,7 @@ class ColorButton(QPushButton):
 
     def color(self) -> str:
         """Return the color as a hex string, empty for an ordinary Qt button."""
-        return STANDARD if self._color is None else self._color.name()
+        return STANDARD if self._color is None else self._color.name(QColor.NameFormat.HexArgb)
 
     def set_color(self, color: QColor | str | None) -> None:
         """Show the given color; an empty one stands for the color of an ordinary Qt button."""

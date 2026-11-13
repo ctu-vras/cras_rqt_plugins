@@ -746,7 +746,7 @@ class ButtonTest(RosGuiTest):
 
     def test_the_configuration_dialog_hands_the_settings_back(self):
         settings = ButtonSettings(service_name='/mission/patrol', button_text='Patrol',
-                                  button_color='#2e7d32', text_color='#ffffff',
+                                  button_color='#802e7d32', text_color='#ffffff',
                                   error_color='#c62828', active_color='#4a90d9',
                                   active_text_color='#000000', response_timeout=4.0,
                                   call_attempts=2, invert_value=True)
