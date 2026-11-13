@@ -3,6 +3,7 @@
 
 import os
 
+from glob import glob
 from setuptools import find_packages, setup
 
 package_name = 'cras_rqt_buttons'
@@ -14,7 +15,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         (os.path.join('share', package_name), ['package.xml', 'plugin.xml']),
-        (os.path.join('share', package_name, 'launch'), ['launch/mission_buttons.launch.py']),
+        (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*.*'))),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -29,6 +30,7 @@ setup(
     license='BSD-3-Clause',
     entry_points={
         'console_scripts': [
+            'empty_button = cras_rqt_buttons.empty_button:main',
             'trigger_button = cras_rqt_buttons.trigger_button:main',
             'push_button = cras_rqt_buttons.push_button:main',
         ],

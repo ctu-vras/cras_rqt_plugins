@@ -9,21 +9,11 @@ from cras_rqt_buttons.button_settings_dialog import ButtonSettingsDialog
 from python_qt_binding.QtCore import Qt
 from python_qt_binding.QtGui import QColor, QFontMetricsF
 from python_qt_binding.QtWidgets import QDialog, QPushButton, QSizePolicy, QVBoxLayout, QWidget
-from std_srvs.srv import SetBool, Trigger
-
-try:
-    # Qt6
-    Expanding = QSizePolicy.Policy.Expanding
-    NoFocus = Qt.FocusPolicy.NoFocus
-    NoContextMenu = Qt.ContextMenuPolicy.NoContextMenu
-except AttributeError:
-    # Qt5
-    Expanding = QSizePolicy.Expanding
-    NoFocus = Qt.NoFocus
-    NoContextMenu = Qt.NoContextMenu
+from rclpy.node import Node
+from std_srvs.srv import Empty, SetBool, Trigger
 
 
-def _css_color(color) -> str:
+def _css_color(color: QColor) -> str:
     """The color in a form understood by a Qt style sheet."""
     if color.alpha() == 255:
         return color.name()
@@ -38,28 +28,29 @@ class ServiceButtonWidget(QWidget):
     and shows its text as large as the space it has. It never waits for anything: the requests are
     handed over to :class:`cras_rqt_buttons.button_engine.ButtonEngine`, which reports the
     responses through signals.
-
-    Qt turns touches on a button into mouse events on its own, which is why looking at pressing and
-    releasing is enough to serve a finger, a stylus and a mouse button alike.
     """
 
     SERVICE_TYPE = None
-    #: whether the button is held rather than only clicked, so that what it sends depends on when
-    #: the operator presses it and when they let go of it
     HOLD_MODE = False
-    #: the settings to start with, overridden by every kind of the button
+    """
+    Whether the button is held rather than only clicked, so that what it sends depends on when the operator presses
+    it and when they let go of it
+    """
     DEFAULTS = ButtonSettings()
+    """the settings to start with, overridden by every kind of the button"""
     WINDOW_TITLE = 'Service Button'
 
-    #: the smallest size a finger can still hit reliably; the button is not allowed to go below it
     MIN_BUTTON_SIZE = 120  # px
+    """the smallest size a finger can still hit reliably; the button is not allowed to go below it"""
     FONT_MIN_POINTS = 8.0
     FONT_MAX_POINTS = 96.0
-    FONT_MARGIN = 10  # px, the space around the text the text should not use
+    FONT_MARGIN = 10
+    """px, the space around the text the text should not use"""
     CORNER_RADIUS = 12  # px
-    FADE = 90  # out of 255, how see-through the button is when it cannot be used
+    FADE = 90
+    """out of 255, how see-through the button is when it cannot be used"""
 
-    def __init__(self, node, parent: QWidget = None):
+    def __init__(self, node: Node, parent: QWidget = None):
         super().__init__(parent)
         self._logger = node.get_logger()
         self._settings = type(self).DEFAULTS
@@ -77,14 +68,14 @@ class ServiceButtonWidget(QWidget):
         self.setObjectName(f'cras_rqt_buttons__{type(self).__name__}')
         self.setWindowTitle(type(self).WINDOW_TITLE)
         self.setMinimumSize(self.MIN_BUTTON_SIZE, self.MIN_BUTTON_SIZE)
-        self.setSizePolicy(Expanding, Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         self._button = QPushButton(self._settings.button_text, self)
         self._button.setObjectName(f'{type(self).__name__}__button')
-        self._button.setFocusPolicy(NoFocus)  # a focus frame only distracts on a touchscreen
-        self._button.setContextMenuPolicy(NoContextMenu)
+        self._button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # a focus frame only distracts on a touchscreen
+        self._button.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         self._button.setMinimumSize(self.MIN_BUTTON_SIZE, self.MIN_BUTTON_SIZE)
-        self._button.setSizePolicy(Expanding, Expanding)
+        self._button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -169,7 +160,7 @@ class ServiceButtonWidget(QWidget):
         super().showEvent(event)
 
     def _button_pressed(self) -> None:
-        # The operator acts again, so stop complaining about the previous failure right away.
+        # The user acts again, so stop complaining about the previous failure right away.
         self._set_error(False, '')
         if not self.HOLD_MODE:
             return
@@ -188,7 +179,7 @@ class ServiceButtonWidget(QWidget):
             return  # in the hold mode, the calls are triggered by pressing and releasing
         self._send(self._make_request(None))
 
-    def _make_request(self, pressed):
+    def _make_request(self, pressed: bool | None):
         """The request to send; ``pressed`` is only meaningful in :attr:`HOLD_MODE`."""
         raise NotImplementedError()
 
@@ -205,7 +196,7 @@ class ServiceButtonWidget(QWidget):
             # A response to a request that a newer one superseded, e.g. when the button was
             # released before the service managed to answer the press. Say so, but do not turn the
             # button red - it shows the outcome of the request that is the valid one now.
-            self._logger.warning(message, throttle_duration_sec=1.0)
+            self._logger.warning(message)
             return
         self._set_error(True, message)
 
@@ -300,6 +291,17 @@ class ServiceButtonWidget(QWidget):
             self._button.setFont(font)
 
 
+class EmptyButtonWidget(ServiceButtonWidget):
+    """A button calling a std_srvs/Empty service, e.g. to start or to stop a robot mission."""
+
+    SERVICE_TYPE = Empty
+    DEFAULTS = ButtonSettings(service_name='empty', button_text='Empty')
+    WINDOW_TITLE = 'Empty Button'
+
+    def _make_request(self, pressed: bool | None) -> Empty.Request:
+        return Empty.Request()
+
+
 class TriggerButtonWidget(ServiceButtonWidget):
     """A button calling a std_srvs/Trigger service, e.g. to start or to stop a robot mission."""
 
@@ -307,7 +309,7 @@ class TriggerButtonWidget(ServiceButtonWidget):
     DEFAULTS = ButtonSettings(service_name='trigger', button_text='Trigger')
     WINDOW_TITLE = 'Trigger Button'
 
-    def _make_request(self, pressed) -> Trigger.Request:
+    def _make_request(self, pressed: bool | None) -> Trigger.Request:
         return Trigger.Request()
 
 
@@ -324,7 +326,7 @@ class PushButtonWidget(ServiceButtonWidget):
     DEFAULTS = ButtonSettings(service_name='set_bool', button_text='Push to Talk')
     WINDOW_TITLE = 'Push Button'
 
-    def _make_request(self, pressed: bool) -> SetBool.Request:
+    def _make_request(self, pressed: bool | None) -> SetBool.Request:
         value = bool(pressed)
         if self._settings.invert_value:
             value = not value

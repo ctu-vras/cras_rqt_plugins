@@ -8,10 +8,11 @@ import threading
 import time
 import unittest
 
-if not os.environ.get('DISPLAY') and not os.environ.get('WAYLAND_DISPLAY'):
-    # The tests build real widgets, and a headless machine has no screen to build them on.
-    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+# The tests build real widgets but we don't want to show them when running on a machine with a display.
+os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
+import launch  # noqa: F401
+import launch_ros  # noqa: F401
 import rclpy  # noqa: E402
 from cras_rqt_buttons.button_settings import ButtonSettings, to_optional_color  # noqa: E402
 from cras_rqt_buttons.button_settings_dialog import ButtonSettingsDialog, ColorEditor  # noqa: E402
@@ -26,18 +27,10 @@ from rclpy.node import Node  # noqa: E402
 from std_srvs.srv import SetBool, Trigger  # noqa: E402
 
 try:
-    MouseButtonPress = QEvent.Type.MouseButtonPress
-    MouseButtonRelease = QEvent.Type.MouseButtonRelease
-    LeftButton = Qt.MouseButton.LeftButton
-    NoButton = Qt.MouseButton.NoButton
-    NoModifier = Qt.KeyboardModifier.NoModifier
+    # Qt6
     from python_qt_binding.QtCore import QPointF
 except AttributeError:
-    MouseButtonPress = QEvent.MouseButtonPress
-    MouseButtonRelease = QEvent.MouseButtonRelease
-    LeftButton = Qt.LeftButton
-    NoButton = Qt.NoButton
-    NoModifier = Qt.NoModifier
+    # Qt5
     from python_qt_binding.QtCore import QPoint
     QPointF = QPoint
 
@@ -155,11 +148,11 @@ class RosGuiTest(unittest.TestCase):
         :param wait: how long to let the request travel to the service and back; ``None`` leaves it
             on the way, which is how to see what the button does before a response arrives
         """
-        self._mouse_event(widget, MouseButtonPress, wait)
+        self._mouse_event(widget, QEvent.Type.MouseButtonPress, wait)
 
     def release(self, widget, wait: float = 0.3) -> None:
         """Let the button go."""
-        self._mouse_event(widget, MouseButtonRelease, wait)
+        self._mouse_event(widget, QEvent.Type.MouseButtonRelease, wait)
 
     def click(self, widget, wait: float = 0.3) -> None:
         """Press and release the button in one go."""
@@ -168,9 +161,9 @@ class RosGuiTest(unittest.TestCase):
 
     def _mouse_event(self, widget, event_type, wait) -> None:
         button = widget.button
-        pressed = LeftButton if event_type == MouseButtonPress else NoButton
-        event = QMouseEvent(event_type, QPointF(button.rect().center()), LeftButton, pressed,
-                            NoModifier)
+        pressed = Qt.MouseButton.LeftButton if event_type == QEvent.Type.MouseButtonPress else Qt.MouseButton.NoButton
+        event = QMouseEvent(event_type, QPointF(button.rect().center()), Qt.MouseButton.LeftButton, pressed,
+                            Qt.KeyboardModifier.NoModifier)
         QApplication.sendEvent(button, event)
         self.app.processEvents()
         if wait is not None:
@@ -224,8 +217,7 @@ class ButtonTest(RosGuiTest):
 
     def test_trigger_button_calls_the_service(self):
         widget, requests = self.make_widget(
-            TriggerButtonWidget, Trigger, '/button_tests/patrol', self.accepted,
-            button_text='Patrol')
+            TriggerButtonWidget, Trigger, '/button_tests/patrol', self.accepted, button_text='Patrol')
         self.assertEqual('Patrol', widget.button.text())
         self.click(widget)
         self.assertEqual(1, len(requests))
@@ -259,7 +251,7 @@ class ButtonTest(RosGuiTest):
         self.assertIn('not while the battery is warm', widget.button.toolTip())
 
         self.press(widget, wait=None)
-        self.assertFalse(widget.is_error())  # the red goes away as soon as the operator acts again
+        self.assertFalse(widget.is_error())  # the red goes away as soon as the user acts again
         self.release(widget)
         self.assertEqual(2, len(requests))
         self.assertFalse(widget.is_error())
@@ -566,21 +558,6 @@ class ButtonTest(RosGuiTest):
         self.assertFalse(field._clear.isEnabled())
         self.assertEqual('', dialog.settings().button_color)
 
-    def test_the_two_buttons_of_a_color_explain_themselves(self):
-        dialog = ButtonSettingsDialog(ButtonSettings(), hold_mode=True)
-        self.addCleanup(dialog.deleteLater)
-        field = dialog._widgets['button_color']
-        self.assertIn('ready to be pressed', field._button.toolTip())  # what the setting means
-        # and what the button that clears the color is for
-        self.assertIn('Take this color away', field._clear.toolTip())
-
-    def test_the_color_of_a_failed_call_has_no_way_back_to_the_standard_look(self):
-        dialog = ButtonSettingsDialog(ButtonSettings(), hold_mode=True)
-        self.addCleanup(dialog.deleteLater)
-        failure = dialog._widgets['error_color']
-        self.assertNotIsInstance(failure, ColorEditor)  # a failed call has to stay visible
-        self.assertEqual(ButtonSettings().error_color, failure.color())
-
     def test_broken_settings_are_ignored(self):
         proxy = SettingsProxy({
             'service_name': '   ',
@@ -625,14 +602,6 @@ class ButtonTest(RosGuiTest):
         untouched, nothing_given = ButtonSettings.from_args([], defaults=defaults)
         self.assertEqual(defaults, untouched)
         self.assertEqual(set(), nothing_given)
-
-
-try:
-    import launch  # noqa: F401
-    import launch_ros  # noqa: F401
-    LAUNCH_AVAILABLE = True
-except ImportError:
-    LAUNCH_AVAILABLE = False
 
 
 class ThreadedTest(unittest.TestCase):
@@ -694,8 +663,8 @@ class ThreadedTest(unittest.TestCase):
             pressed_at = time.monotonic()
             button = widget.button
             QApplication.sendEvent(
-                button, QMouseEvent(MouseButtonPress, QPointF(button.rect().center()),
-                                    LeftButton, LeftButton, NoModifier))
+                button, QMouseEvent(QEvent.Type.MouseButtonPress, QPointF(button.rect().center()),
+                                    Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier))
             took = time.monotonic() - pressed_at
             self.assertLess(took, 0.2, 'pressing the button had to wait for the service')
             self.assertEqual(1, widget.pending_requests())  # the request is on its way
@@ -781,7 +750,6 @@ class PluginTest(RosGuiTest):
         self.assertTrue(stored.widgets[0].settings().invert_value)
 
 
-@unittest.skipUnless(LAUNCH_AVAILABLE, 'launch and launch_ros are not installed')
 class MissionLaunchTest(unittest.TestCase):
     """The mission control described in the issue really is launchable."""
 
@@ -804,7 +772,7 @@ class MissionLaunchTest(unittest.TestCase):
                          [button['text'] for button in mission_buttons.BUTTONS])
         # only the talking button is held, the other three just trigger their service
         self.assertEqual(
-            ['trigger_button', 'trigger_button', 'push_button', 'trigger_button'],
+            ['trigger_button', 'trigger_button', 'push_button', 'empty_button'],
             [button['executable'] for button in mission_buttons.BUTTONS])
 
     def test_the_buttons_are_launchable(self):

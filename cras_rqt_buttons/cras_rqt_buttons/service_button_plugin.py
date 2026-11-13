@@ -68,5 +68,4 @@ def run_standalone(plugin_name: str) -> None:
     """
     from rqt_gui.main import Main
     main = Main(filename=plugin_name.replace('/', '.'))
-    sys.exit(main.main(sys.argv, standalone=plugin_name,
-                       plugin_argument_provider=ButtonSettings.add_arguments))
+    sys.exit(main.main(sys.argv, standalone=plugin_name, plugin_argument_provider=ButtonSettings.add_arguments))

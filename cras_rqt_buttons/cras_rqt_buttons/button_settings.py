@@ -5,7 +5,7 @@
 
 import argparse
 from dataclasses import dataclass, field, fields, replace
-from typing import Any, Optional, Sequence, Set, Tuple
+from typing import Any, Sequence
 
 from python_qt_binding.QtGui import QColor
 
@@ -21,7 +21,7 @@ def _text(label: str, description: str, allow_empty: bool = False) -> dict:
             'allow_empty': allow_empty}
 
 
-#: the value of a color setting asking for the color the Qt style uses for the button
+# the value of a color setting asking for the color the Qt style uses for the button
 STANDARD = ''
 
 
@@ -32,7 +32,7 @@ def _color(label: str, description: str, optional: bool = False) -> dict:
 
 
 def _number(label: str, description: str, suffix: str, decimals: int,
-            limits: Tuple[float, float], step: float) -> dict:
+            limits: tuple[float, float], step: float) -> dict:
     """Metadata of a numeric setting."""
     return {'label': label, 'description': description, 'section': 'Behaviour', 'suffix': suffix,
             'decimals': decimals, 'limits': limits, 'step': step}
@@ -49,7 +49,7 @@ def _flag(label: str, description: str, hold_only: bool = False) -> dict:
             'hold_only': hold_only}
 
 
-def to_optional_color(value: Any) -> Optional[QColor]:
+def to_optional_color(value: QColor | str | None) -> QColor | None:
     """
     Interpret the given value as a color that the button may also not have at all.
 
@@ -67,7 +67,7 @@ def to_optional_color(value: Any) -> Optional[QColor]:
     return color if color.isValid() else None
 
 
-def to_color(value: Any, default: Any) -> QColor:
+def to_color(value: QColor | str | None, default: QColor | str | None) -> QColor:
     """
     Interpret the given value as a color.
 
@@ -75,11 +75,11 @@ def to_color(value: Any, default: Any) -> QColor:
     ``#4a90d9``, and colors themselves). Anything that cannot be understood is replaced by
     ``default``, which is interpreted the same way.
     """
-    color = QColor(value) if isinstance(value, (str, QColor)) else QColor()
-    if not color.isValid():
-        color = QColor(default) if isinstance(default, (str, QColor)) else QColor('gray')
-    if not color.isValid():
-        color = QColor('gray')
+    color = to_optional_color(value)
+    if color is None:
+        color = to_optional_color(default)
+        if color is None:
+            color = QColor('gray')
     return color
 
 
@@ -111,7 +111,7 @@ def _to_bool(value: Any, default: bool) -> bool:
     return default
 
 
-def _to_number(value: Any, default, limits: Tuple[float, float], cast):
+def _to_number(value: Any, default, limits: tuple[float, float], cast):
     try:
         number = cast(value)
     except (TypeError, ValueError):
@@ -157,11 +157,9 @@ class ButtonSettings:
     service_name: str = field(default='trigger', metadata=_service(
         'Service name', 'The name of the std_srvs service the button calls. Relative names are '
         'resolved in the namespace of the plugin.'))
-    button_text: str = field(default='Button', metadata=_text(
-        'Button text', 'What the button says. The text is made as large as the button is.',
-        allow_empty=True))
+    button_text: str = field(default='Button', metadata=_text('Button text', 'What the button says.', allow_empty=True))
     button_color: str = field(default=STANDARD, metadata=_color(
-        'Button color', 'The color of the button while it is ready to be pressed. Leave it empty '
+        'Button color', 'The standard color of the button. Leave it empty '
         'to paint the button the way an ordinary Qt button is painted.', optional=True))
     text_color: str = field(default=STANDARD, metadata=_color(
         'Text color', 'The color of the text on the button. Leave it empty to use the color the '
@@ -182,7 +180,7 @@ class ButtonSettings:
             settings.set_value(item.name, getattr(self, item.name))
 
     @classmethod
-    def load(cls, settings, defaults: Optional['ButtonSettings'] = None) -> 'ButtonSettings':
+    def load(cls, settings, defaults: 'ButtonSettings | None' = None) -> 'ButtonSettings':
         """
         Load all values from the given rqt settings proxy.
 
@@ -228,8 +226,8 @@ class ButtonSettings:
                                     help=metadata.get('description', ''))
 
     @classmethod
-    def from_args(cls, argv: Sequence[str], defaults: Optional['ButtonSettings'] = None
-                  ) -> Tuple['ButtonSettings', Set[str]]:
+    def from_args(cls, argv: Sequence[str], defaults: 'ButtonSettings | None' = None
+                  ) -> tuple['ButtonSettings', set[str]]:
         """
         Read the settings given on the command line.
 

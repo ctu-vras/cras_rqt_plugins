@@ -18,6 +18,20 @@ SPDX-FileCopyrightText: Czech Technical University in Prague
       <statustip>A large touch-friendly button calling a std_srvs/Trigger service, e.g. to start or stop a robot mission.</statustip>
     </qtgui>
   </class>
+  <class name="EmptyButton" type="cras_rqt_buttons.trigger_button.CrasRqtEmptyButton" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      RQt plugin with a large button that calls a std_srvs/Empty service.
+    </description>
+    <qtgui>
+      <group>
+        <label>Services</label>
+        <icon type="theme">folder</icon>
+      </group>
+      <label>Service Empty Button</label>
+      <icon type="theme">applications-accessories</icon>
+      <statustip>A large touch-friendly button calling a std_srvs/Empty service, e.g. to start or stop a robot mission.</statustip>
+    </qtgui>
+  </class>
   <class name="PushButton" type="cras_rqt_buttons.push_button.CrasRqtPushButton" base_class_type="rqt_gui_py::Plugin">
     <description>
       RQt plugin with a large button that calls a std_srvs/SetBool service, with true

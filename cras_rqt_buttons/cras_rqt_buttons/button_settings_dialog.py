@@ -13,27 +13,6 @@ from python_qt_binding.QtWidgets import (QCheckBox, QColorDialog, QDialog, QDial
                                          QLineEdit, QPushButton, QStyle, QToolButton,
                                          QVBoxLayout, QWidget)
 
-try:
-    # Qt6
-    AllNonFixedFieldsGrow = QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
-    transparent = Qt.GlobalColor.transparent
-    Antialiasing = QPainter.RenderHint.Antialiasing
-    Button = QPalette.ColorRole.Button
-    Text = QPalette.ColorRole.Text
-    DashLine = Qt.PenStyle.DashLine
-    Ok = QDialogButtonBox.StandardButton.Ok
-    Cancel = QDialogButtonBox.StandardButton.Cancel
-except AttributeError:
-    # broken Qt5
-    AllNonFixedFieldsGrow = QFormLayout.AllNonFixedFieldsGrow
-    transparent = Qt.transparent
-    Antialiasing = QPainter.Antialiasing
-    Button = QPalette.Button
-    Text = QPalette.Text
-    DashLine = Qt.DashLine
-    Ok = QDialogButtonBox.Ok
-    Cancel = QDialogButtonBox.Cancel
-    
 
 COLOR_BUTTON_WIDTH = 130  # px, wide enough to be a comfortable target for a finger
 CHIP_WIDTH = 40  # px, the chip of the color the color selection shows
@@ -41,10 +20,10 @@ CHIP_HEIGHT = 18  # px
 CHIP_GAP = 8  # px, the space between the chip and the color written next to it
 CHIP_CORNER = 3  # px
 CLEAR_BUTTON_WIDTH = 34  # px
-#: what the color selection says while the button is painted the way an ordinary Qt button is
+# what the color selection says while the button is painted the way an ordinary Qt button is
 STANDARD_LABEL = 'Standard'
 CLEAR_TIP = 'Take this color away, so the button is painted the way an ordinary Qt button is.'
-#: only used when the Qt style has no icon to clear with, which is not expected to happen
+# only used when the Qt style has no icon to clear with, which is not expected to happen
 CLEAR_FALLBACK_TEXT = '×'
 
 
@@ -62,25 +41,25 @@ def clear_icon(style) -> QIcon:
     return QIcon.fromTheme('edit-clear')
 
 
-def color_chip(color, parent: QWidget = None) -> QIcon:
+def color_chip(color: QColor | None, parent: QWidget = None) -> QIcon:
     """
-    Paint a chip with the given color, so that the color one picks is impossible to miss.
+    Paint a chip with the given color.
 
     :param color: the color of the chip, ``None`` for a chip that stands for the color an ordinary
         Qt button is painted with
     :param parent: the widget whose colors are used to paint the empty chip
     """
     pixmap = QPixmap(CHIP_WIDTH + CHIP_GAP, CHIP_HEIGHT)
-    pixmap.fill(transparent)
+    pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
-    painter.setRenderHint(Antialiasing)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     area = QRectF(0.5, 0.5, CHIP_WIDTH - 1.0, CHIP_HEIGHT - 1.0)
     if color is None:
         # a dashed outline, the way a line edit shows it holds nothing
         palette = parent.palette() if parent is not None else QPalette()
-        painter.setBrush(palette.brush(Button))
-        pen = QPen(palette.color(Text))
-        pen.setStyle(DashLine)
+        painter.setBrush(palette.brush(QPalette.ColorRole.Button))
+        pen = QPen(palette.color(QPalette.ColorRole.Text))
+        pen.setStyle(Qt.PenStyle.DashLine)
         painter.setPen(pen)
     else:
         painter.setBrush(QBrush(color))
@@ -98,10 +77,10 @@ class ColorButton(QPushButton):
     an ordinary Qt button is.
     """
 
-    #: the color that is shown now, whenever it changes; empty for an ordinary Qt button
+    # the color that is shown now, whenever it changes; empty for an ordinary Qt button
     color_changed = Signal(str)
 
-    def __init__(self, color, parent: QWidget = None):
+    def __init__(self, color: QColor | str | None, parent: QWidget = None):
         super().__init__(parent)
         self._color = to_optional_color(color)
         self.setMinimumWidth(COLOR_BUTTON_WIDTH)
@@ -114,7 +93,7 @@ class ColorButton(QPushButton):
         """Return the color as a hex string, empty for an ordinary Qt button."""
         return STANDARD if self._color is None else self._color.name()
 
-    def set_color(self, color) -> None:
+    def set_color(self, color: QColor | str | None) -> None:
         """Show the given color; an empty one stands for the color of an ordinary Qt button."""
         self._color = to_optional_color(color)
         self._show_color()
@@ -125,7 +104,7 @@ class ColorButton(QPushButton):
         current = self._color if self._color is not None else QColor('gray')
         # the chooser is opened over the dialog it belongs to rather than over this button, so that
         # it cannot end up looking like the color field it was opened from
-        chosen = QColorDialog.getColor(current, self.window(), 'Choose the color')
+        chosen = QColorDialog.getColor(current, self.window(), 'Choose color')
         if chosen.isValid():
             self.set_color(chosen)
 
@@ -169,11 +148,11 @@ class ColorEditor(QWidget):
         """Return the color as a hex string, empty for an ordinary Qt button."""
         return self._button.color()
 
-    def set_color(self, color) -> None:
+    def set_color(self, color: QColor | str | None) -> None:
         """Show the given color; an empty one stands for the color of an ordinary Qt button."""
         self._button.set_color(color)
 
-    def setToolTip(self, tip: str) -> None:
+    def setToolTip(self, tip: str | None) -> None:
         # the two buttons fill the whole editor, so a tip that only the editor itself knows would
         # be nearly impossible to bring up
         super().setToolTip(tip)
@@ -218,7 +197,7 @@ class ButtonSettingsDialog(QDialog):
             if section:
                 layout.addWidget(QLabel(f'<b>{section}</b>'))
             form = QFormLayout()
-            form.setFieldGrowthPolicy(AllNonFixedFieldsGrow)
+            form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
             for item in items:
                 widget = self._create_widget(item, getattr(settings, item.name))
                 widget.setToolTip(item.metadata.get('description', ''))
@@ -226,7 +205,7 @@ class ButtonSettingsDialog(QDialog):
                 form.addRow(item.metadata.get('label', item.name), widget)
             layout.addLayout(form)
 
-        buttons = QDialogButtonBox(Ok | Cancel)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
