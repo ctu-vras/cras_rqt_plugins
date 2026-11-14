@@ -746,9 +746,9 @@ class ButtonTest(RosGuiTest):
 
     def test_the_configuration_dialog_hands_the_settings_back(self):
         settings = ButtonSettings(service_name='/mission/patrol', button_text='Patrol',
-                                  button_color='#802e7d32', text_color='#ffffff',
-                                  error_color='#c62828', active_color='#4a90d9',
-                                  active_text_color='#000000', response_timeout=4.0,
+                                  button_color='#802e7d32', text_color='#ffffffff',
+                                  error_color='#ffc62828', active_color='#ff4a90d9',
+                                  active_text_color='#ff000000', response_timeout=4.0,
                                   call_attempts=2, invert_value=True)
         dialog = ButtonSettingsDialog(settings, hold_mode=True)
         self.addCleanup(dialog.deleteLater)
@@ -765,10 +765,10 @@ class ButtonTest(RosGuiTest):
         dialog._widgets['invert_value'].setChecked(False)
         changed = dialog.settings()
         self.assertEqual('Home', changed.button_text)
-        self.assertEqual('#0000ff', changed.button_color)
+        self.assertEqual('#ff0000ff', changed.button_color)
         self.assertEqual('', changed.text_color)
         self.assertEqual(1.5, changed.response_timeout)
-        self.assertEqual('#00ff00', changed.active_color)
+        self.assertEqual('#ff00ff00', changed.active_color)
         self.assertEqual(7, changed.call_attempts)
         self.assertIsInstance(changed.call_attempts, int)  # a count of attempts is a whole number
         self.assertFalse(changed.invert_value)
@@ -825,7 +825,7 @@ class ButtonTest(RosGuiTest):
 
         field._button.set_color('#2e7d32')  # and this is what the color chooser ends up doing
         self.assertTrue(field._clear.isEnabled())
-        self.assertEqual('#2e7d32', field.color())
+        self.assertEqual('#ff2e7d32', field.color())
 
         field._clear.click()
         self.assertEqual('', field.color())

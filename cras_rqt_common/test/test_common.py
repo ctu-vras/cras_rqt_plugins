@@ -4,8 +4,7 @@
 from dataclasses import dataclass, field
 
 from cras_rqt_common.color import to_optional_color
-from cras_rqt_common.settings import (SettingsBase, load_settings, parse_setting, save_settings,
-                                      to_number)
+from cras_rqt_common.settings import SettingsBase, parse_setting, to_number
 from python_qt_binding.QtGui import QColor
 
 
@@ -38,14 +37,14 @@ class ParsedSettings(SettingsBase):
 
 def test_save_dataclass_settings_to_rqt_proxy():
     proxy = SettingsProxy()
-    save_settings(ExampleSettings(count=7), proxy)
+    ExampleSettings(count=7).save(proxy)
     assert proxy.values == {'count': 7, 'label': 'example'}
 
 
 def test_load_dataclass_settings_uses_common_metadata_parser_and_defaults():
     proxy = SettingsProxy()
     proxy.values['count'] = '8'
-    loaded = load_settings(ExampleSettings, proxy, defaults=ExampleSettings(count=5, label='custom'))
+    loaded = ExampleSettings.load(proxy, defaults=ExampleSettings(count=5, label='custom'))
     assert loaded == ExampleSettings(count=8, label='custom')
 
 

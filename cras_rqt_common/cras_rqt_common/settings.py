@@ -4,7 +4,7 @@
 """Helpers for dataclass-backed RQt settings."""
 
 import argparse
-from dataclasses import fields, replace
+from dataclasses import dataclass, fields, replace
 from typing import Any, Sequence
 
 from cras_rqt_common.color import to_color, to_optional_color
@@ -12,23 +12,6 @@ from python_qt_binding.QtGui import QColor
 
 TRUE_WORDS = ('1', 'true', 'yes', 'on')
 FALSE_WORDS = ('0', 'false', 'no', 'off')
-
-
-def save_settings(settings, proxy) -> None:
-    """Store all dataclass values in the given rqt settings proxy."""
-    for item in fields(settings):
-        proxy.set_value(item.name, getattr(settings, item.name))
-
-
-def load_settings(settings_type, proxy, defaults=None):
-    """Load a settings dataclass using its field metadata."""
-    base = settings_type() if defaults is None else defaults
-    values = {}
-    for item in fields(settings_type):
-        default = getattr(base, item.name)
-        raw = proxy.value(item.name, default)
-        values[item.name] = parse_setting(item, raw, default)
-    return settings_type(**values)
 
 
 def to_number(value, default, limits: tuple[float, float], cast):
@@ -95,15 +78,23 @@ def parse_setting(item, value: Any, default: Any) -> Any:
     return text
 
 
+@dataclass
 class SettingsBase:
     """Common persistence and command-line parsing for settings dataclasses."""
 
     def save(self, proxy) -> None:
-        save_settings(self, proxy)
+        for item in fields(self):
+            proxy.set_value(item.name, getattr(self, item.name))
 
     @classmethod
     def load(cls, proxy, defaults=None):
-        return load_settings(cls, proxy, defaults)
+        base = cls() if defaults is None else defaults
+        values = {}
+        for item in fields(cls):
+            default = getattr(base, item.name)
+            raw = proxy.value(item.name, default)
+            values[item.name] = parse_setting(item, raw, default)
+        return cls(**values)
 
     @classmethod
     def arg_parser(cls) -> argparse.ArgumentParser:
