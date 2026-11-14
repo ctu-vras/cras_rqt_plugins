@@ -7,6 +7,7 @@ SPDX-FileCopyrightText: Czech Technical University in Prague
 
 This package holds RQt plugins that are not part of the ROS distribution. It currently contains
 
+- `cras_rqt_common`: metadata-driven settings persistence, loading and CLI parsing, plus numeric and Qt color helpers.
 - `cras_rqt_ptz_control`: a touch-friendly D-pad to steer a PTZ gimbal-camera by relative motions and velocities.
 - `cras_rqt_text`: a widget showing a text coming from a `std_msgs/String` or `rviz_2d_overlay_msgs/OverlayText`
   topic, with the markup in the text interpreted.

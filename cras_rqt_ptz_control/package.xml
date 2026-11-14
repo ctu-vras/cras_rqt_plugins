@@ -11,6 +11,7 @@ SPDX-FileCopyrightText: Czech Technical University in Prague
   <maintainer email="peckama2@fel.cvut.cz">Martin Pecka</maintainer>
   <license>BSD-3-Clause</license>
 
+  <exec_depend>cras_rqt_common</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>python_qt_binding</exec_depend>
   <exec_depend>rclpy</exec_depend>

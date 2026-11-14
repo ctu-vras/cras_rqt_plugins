@@ -717,9 +717,9 @@ class ButtonTest(RosGuiTest):
         self.widgets.append(other)
         other.restore_settings(None, proxy)
         self.assertEqual(ButtonSettings(
-            service_name='/button_tests/stored', button_text='Home', button_color='#ffff00',
-            text_color='#000000', error_color='#0000ff', active_color='#008000',
-            active_text_color='#ffffff', response_timeout=3.0, call_attempts=4, invert_value=True,
+            service_name='/button_tests/stored', button_text='Home', button_color='#ffffff00',
+            text_color='#ff000000', error_color='#ff0000ff', active_color='#ff008000',
+            active_text_color='#ffffffff', response_timeout=3.0, call_attempts=4, invert_value=True,
         ), other.settings())
         self.assertIsInstance(other.settings().call_attempts, int)  # a count, not a decimal number
         self.assertEqual('Home', other.button.text())
@@ -737,18 +737,18 @@ class ButtonTest(RosGuiTest):
     def test_a_color_that_makes_no_sense_is_left_out(self):
         stored = SettingsProxy({'button_color': 'yellow'})
         settings = ButtonSettings.load(stored)
-        self.assertEqual('#ffff00', settings.button_color)
+        self.assertEqual('#ffffff00', settings.button_color)
         broken = SettingsProxy({'button_color': 'not a color at all'})
         self.assertEqual('', ButtonSettings.load(broken).button_color)
         # and a setting that used to be good does not turn into the standard one because of that
         kept = ButtonSettings.load(broken, defaults=settings)
-        self.assertEqual('#ffff00', kept.button_color)
+        self.assertEqual('#ffffff00', kept.button_color)
 
     def test_the_configuration_dialog_hands_the_settings_back(self):
         settings = ButtonSettings(service_name='/mission/patrol', button_text='Patrol',
-                                  button_color='#2e7d32', text_color='#ffffff',
-                                  error_color='#c62828', active_color='#4a90d9',
-                                  active_text_color='#000000', response_timeout=4.0,
+                                  button_color='#802e7d32', text_color='#ffffffff',
+                                  error_color='#ffc62828', active_color='#ff4a90d9',
+                                  active_text_color='#ff000000', response_timeout=4.0,
                                   call_attempts=2, invert_value=True)
         dialog = ButtonSettingsDialog(settings, hold_mode=True)
         self.addCleanup(dialog.deleteLater)
@@ -765,10 +765,10 @@ class ButtonTest(RosGuiTest):
         dialog._widgets['invert_value'].setChecked(False)
         changed = dialog.settings()
         self.assertEqual('Home', changed.button_text)
-        self.assertEqual('#0000ff', changed.button_color)
+        self.assertEqual('#ff0000ff', changed.button_color)
         self.assertEqual('', changed.text_color)
         self.assertEqual(1.5, changed.response_timeout)
-        self.assertEqual('#00ff00', changed.active_color)
+        self.assertEqual('#ff00ff00', changed.active_color)
         self.assertEqual(7, changed.call_attempts)
         self.assertIsInstance(changed.call_attempts, int)  # a count of attempts is a whole number
         self.assertFalse(changed.invert_value)
@@ -825,7 +825,7 @@ class ButtonTest(RosGuiTest):
 
         field._button.set_color('#2e7d32')  # and this is what the color chooser ends up doing
         self.assertTrue(field._clear.isEnabled())
-        self.assertEqual('#2e7d32', field.color())
+        self.assertEqual('#ff2e7d32', field.color())
 
         field._clear.click()
         self.assertEqual('', field.color())
@@ -849,7 +849,7 @@ class ButtonTest(RosGuiTest):
         self.assertEqual(defaults.service_name, settings.service_name)
         self.assertEqual(defaults.button_text, settings.button_text)
         self.assertEqual(defaults.button_color, settings.button_color)
-        self.assertEqual('#00ff00', settings.text_color)
+        self.assertEqual('#ff00ff00', settings.text_color)
         self.assertEqual(defaults.error_color, settings.error_color)
         self.assertEqual(defaults.active_color, settings.active_color)
         self.assertEqual(defaults.response_timeout, settings.response_timeout)
@@ -873,7 +873,7 @@ class ButtonTest(RosGuiTest):
         ], defaults=defaults)
         self.assertEqual('/mission/patrol', settings.service_name)
         self.assertEqual('Patrol', settings.button_text)
-        self.assertEqual('#ff0000', settings.button_color)
+        self.assertEqual('#ffff0000', settings.button_color)
         self.assertEqual(2.5, settings.response_timeout)
         self.assertEqual(4, settings.call_attempts)
         self.assertEqual(defaults.text_color, settings.text_color)

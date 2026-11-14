@@ -3,8 +3,10 @@
 
 """Configurable topics and command amplitudes of the PTZ control plugin."""
 
-from dataclasses import dataclass, field, fields
-from typing import Any, Tuple
+from dataclasses import dataclass, field
+from typing import Tuple
+
+from cras_rqt_common.settings import SettingsBase
 
 
 def _topic(label: str, description: str) -> dict:
@@ -19,33 +21,8 @@ def _number(label: str, description: str, suffix: str, decimals: int,
             'decimals': decimals, 'limits': limits, 'step': step}
 
 
-def _to_bool(value: Any, default: bool) -> bool:
-    if isinstance(value, bool):
-        return value
-    if value is None:
-        return default
-    if isinstance(value, str):
-        return value.strip().lower() in ('1', 'true', 'yes', 'on')
-    return bool(value)
-
-
-def _to_number(value: Any, default, limits: Tuple[float, float], cast):
-    try:
-        number = cast(value)
-    except (TypeError, ValueError):
-        return default
-    return cast(min(max(number, limits[0]), limits[1]))
-
-
-def _to_name(value: Any, default: str) -> str:
-    if value is None:
-        return default
-    name = str(value).strip()
-    return name if name else default
-
-
 @dataclass
-class PtzControlSettings:
+class PtzControlSettings(SettingsBase):
     """Everything the PTZ control plugin can be told to do differently."""
 
     velocity_topic: str = field(default='siyi/cmd/cmd_vel', metadata=_topic(
@@ -78,30 +55,3 @@ class PtzControlSettings:
     hold_delay_ms: int = field(default=250, metadata=_number(
         'Hold delay', 'For how long a button must be pressed to be considered held rather than '
         'tapped.', ' ms', 0, (50, 2000), 50))
-
-    def save(self, settings) -> None:
-        """Store all values in the given rqt settings proxy."""
-        for item in fields(self):
-            settings.set_value(item.name, getattr(self, item.name))
-
-    @classmethod
-    def load(cls, settings) -> 'PtzControlSettings':
-        """
-        Load all values from the given rqt settings proxy.
-
-        Unknown, empty or malformed values are silently replaced by the defaults.
-        """
-        defaults = cls()
-        values = {}
-        for item in fields(cls):
-            default = getattr(defaults, item.name)
-            raw = settings.value(item.name, default)
-            if item.type is bool:
-                values[item.name] = _to_bool(raw, default)
-            elif item.type is int:
-                values[item.name] = _to_number(raw, default, item.metadata['limits'], int)
-            elif item.type is float:
-                values[item.name] = _to_number(raw, default, item.metadata['limits'], float)
-            else:
-                values[item.name] = _to_name(raw, default)
-        return cls(**values)

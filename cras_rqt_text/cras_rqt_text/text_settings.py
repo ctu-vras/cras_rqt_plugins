@@ -3,10 +3,10 @@
 
 """Configurable topic, message type and text appearance of the text plugin."""
 
-from dataclasses import dataclass, field, fields
-from typing import Any
+from dataclasses import dataclass, field
 
-from python_qt_binding.QtGui import QColor
+from cras_rqt_common.color import to_optional_color
+from cras_rqt_common.settings import SettingsBase, parse_color
 
 STRING_TYPE = 'std_msgs/msg/String'
 OVERLAY_TYPE = 'rviz_2d_overlay_msgs/msg/OverlayText'
@@ -23,31 +23,13 @@ TYPE_OPTIONS = ((STRING_TYPE, 'std_msgs/String'),
 HORIZONTAL_OPTIONS = ((LEFT, 'Left'), (CENTER, 'Center'), (RIGHT, 'Right'))
 VERTICAL_OPTIONS = ((TOP, 'Top'), (CENTER, 'Center'), (BOTTOM, 'Bottom'))
 
-HEX_DIGITS = '0123456789abcdefABCDEF'
-
 STANDARD = ''
-
-
-def to_optional_color(value: QColor | str | None) -> QColor | None:
-    """
-    Interpret the given value as a color that the button may also not have at all.
-
-    An empty value stands for ``None``, which means that the button is painted the way an ordinary
-    Qt button is, and anything that cannot be understood is treated the same way rather than
-    making the button end up in a color nobody asked for.
-    """
-    if value is None:
-        return None
-    if isinstance(value, QColor):
-        return QColor(value)
-    if not isinstance(value, str) or not value.strip():
-        return None
-    color = QColor(value)
-    return color if color.isValid() else None
 
 
 def _setting(label: str, description: str, section: str, kind: str, **extra) -> dict:
     """Describe to the configuration dialog what to ask for."""
+    if kind == 'text':
+        extra.setdefault('allow_empty', True)
     metadata = {'label': label, 'description': description, 'section': section, 'kind': kind}
     metadata.update(extra)
     return metadata
@@ -69,60 +51,11 @@ def _flag(label: str, description: str, section: str) -> dict:
 
 def _color(label: str, description: str, section: str) -> dict:
     """Describe a color; leaving it unset means the color any other rqt widget uses."""
-    return _setting(label, description, section, 'color')
-
-
-def _channel(value: Any) -> int:
-    return min(max(int(round(float(value))), 0), 255)
-
-
-def parse_color(value: Any, default: str) -> str:
-    """
-    Read a color written as ``#rrggbb`` or ``#aarrggbb``.
-
-    :param value: what to parse; anything else than the supported forms gives ``default``.
-    :param default: the default color to use if ``value`` is not a valid color.
-    """
-    if value is None or (isinstance(value, str) and not value.strip()):
-        return STANDARD  # no color of its own, so the Qt style decides how the item looks
-    color = to_optional_color(value)
-    return color.name(QColor.NameFormat.HexArgb) if color is not None else default
-
-
-def _to_bool(value: Any, default: bool) -> bool:
-    if isinstance(value, bool):
-        return value
-    if value is None:
-        return default
-    if isinstance(value, str):
-        return value.strip().lower() in ('1', 'true', 'yes', 'on')
-    return bool(value)
-
-
-def _to_number(value: Any, default, limits: tuple[float, float], cast):
-    try:
-        number = cast(value)
-    except (TypeError, ValueError):
-        return default
-    return cast(min(max(number, limits[0]), limits[1]))
-
-
-def _to_text(value: Any, default: str) -> str:
-    """Read a text setting. An empty one is a valid answer, e.g. for a topic to listen on."""
-    return default if value is None else str(value).strip()
-
-
-def _to_choice(value: Any, default, options: tuple):
-    if value is None:
-        return default
-    for option, _ in options:
-        if option == value or str(option) == str(value).strip():
-            return option
-    return default
+    return _setting(label, description, section, 'color', optional=True)
 
 
 @dataclass
-class TextSettings:
+class TextSettings(SettingsBase):
     """Everything the text plugin can be told to do differently."""
 
     topic: str = field(default='overlay_text', metadata=_setting(
@@ -177,35 +110,3 @@ class TextSettings:
     def overlay_messages(self) -> bool:
         """Tell whether the topic carries OverlayText rather than plain String messages."""
         return self.message_type == OVERLAY_TYPE
-
-    def save(self, settings) -> None:
-        """Store all values in the given rqt settings proxy."""
-        for item in fields(self):
-            settings.set_value(item.name, getattr(self, item.name))
-
-    @classmethod
-    def load(cls, settings) -> 'TextSettings':
-        """
-        Load all values from the given rqt settings proxy.
-
-        Unknown or malformed values are silently replaced by the defaults.
-        """
-        defaults = cls()
-        values = {}
-        for item in fields(cls):
-            default = getattr(defaults, item.name)
-            raw = settings.value(item.name, default)
-            kind = item.metadata['kind']
-            if kind == 'choice':
-                values[item.name] = _to_choice(raw, default, item.metadata['options'])
-            elif kind == 'flag':
-                values[item.name] = _to_bool(raw, default)
-            elif kind == 'color':
-                values[item.name] = parse_color(raw, default)
-            elif item.type is int:
-                values[item.name] = _to_number(raw, default, item.metadata['limits'], int)
-            elif item.type is float:
-                values[item.name] = _to_number(raw, default, item.metadata['limits'], float)
-            else:
-                values[item.name] = _to_text(raw, default)
-        return cls(**values)
