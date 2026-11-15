@@ -1,96 +1,100 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # SPDX-FileCopyrightText: Czech Technical University in Prague
 
-"""Configurable service and appearance of the button plugins."""
+"""What the button plugins are told to do and how they look."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from cras_rqt_common.color import to_color, to_optional_color
+from cras_rqt_common.color import Color
+from cras_rqt_common.color_widgets import CLEAR_TIP
 from cras_rqt_common.settings import SettingsBase
+from cras_rqt_common.settings_fields import (
+    BoolField, FloatField, IntField, OptionalColorField, RequiredColorField, TextField)
 
+ERROR_COLOR = Color('#c62828')
+"""the color of a button whose last service call failed"""
 
-def _service(label: str, description: str) -> dict:
-    """Metadata of a setting with a service name."""
-    return {'label': label, 'description': description, 'section': 'Service'}
+BUTTON_CLEAR_TIP = f'{CLEAR_TIP} The button then looks like any other Qt button.'
+"""what the button that takes the color of a button away says"""
 
-
-def _text(label: str, description: str, allow_empty: bool = False) -> dict:
-    """Metadata of a setting with a text shown on the button."""
-    return {'label': label, 'description': description, 'section': 'Appearance',
-            'allow_empty': allow_empty}
-
-
-# the value of a color setting asking for the color the Qt style uses for the button
-STANDARD = ''
-
-
-def _color(label: str, description: str, optional: bool = False,
-           hold_only: bool = False) -> dict:
-    """
-    Metadata of a setting with a color of the button.
-
-    :param hold_only: whether the setting only makes sense for a button that is held, so that it
-        can be hidden in the configuration dialog of the buttons that are only clicked
-    """
-    return {'label': label, 'description': description, 'section': 'Appearance', 'kind': 'color',
-            'optional': optional, 'hold_only': hold_only}
-
-
-def _number(label: str, description: str, suffix: str, decimals: int,
-            limits: tuple[float, float], step: float, hold_only: bool = False) -> dict:
-    """Metadata of a numeric setting."""
-    return {'label': label, 'description': description, 'section': 'Behaviour', 'suffix': suffix,
-            'decimals': decimals, 'limits': limits, 'step': step, 'hold_only': hold_only}
-
-
-def _flag(label: str, description: str, hold_only: bool = False) -> dict:
-    """
-    Metadata of a setting that can be switched on and off.
-
-    :param hold_only: whether the setting only makes sense for a button that is held, so that it
-        can be hidden in the configuration dialog of the buttons that are only clicked
-    """
-    return {'label': label, 'description': description, 'section': 'Behaviour', 'kind': 'bool',
-            'hold_only': hold_only}
+SEC_SERVICE = 'Service'
+SEC_APPEARANCE = 'Appearance'
+SEC_BEHAVIOR = 'Behavior'
 
 
 @dataclass
 class ButtonSettings(SettingsBase):
     """
-    Everything the button plugins can be told to do differently.
-
-    The metadata of each field drives both the configuration dialog and the command line parsing,
-    so a new setting only needs to be added here.
+    Basic settings of all buttons.
     """
 
-    service_name: str = field(default='trigger', metadata=_service(
-        'Service name', 'The name of the std_srvs service the button calls. Relative names are '
-        'resolved in the namespace of the plugin.'))
-    button_text: str = field(default='Button', metadata=_text('Button text', 'What the button says.', allow_empty=True))
-    button_color: str = field(default=STANDARD, metadata=_color(
-        'Button color', 'The standard color of the button. Leave it empty '
-        'to paint the button the way an ordinary Qt button is painted.', optional=True))
-    text_color: str = field(default=STANDARD, metadata=_color(
-        'Text color', 'The color of the text on the button. Leave it empty to use the color the '
-        'Qt style uses for the text of a button.', optional=True))
-    error_color: str = field(default='#ffc62828', metadata=_color(
-        'Error color', 'The color of the button once the service call fails. The button stops '
-        'being red as soon as it is pressed again.'))
-    active_color: str = field(default=STANDARD, metadata=_color(
-        'Active color', 'The color of a button that is held once the service accepts that it is '
-        'held. Leave it empty to keep the ordinary color of the button.', optional=True,
-        hold_only=True))
-    active_text_color: str = field(default=STANDARD, metadata=_color(
-        'Active text color', 'The color of the text on the button while it is active. Leave it '
-        'empty to use the color the Qt style uses for the text of a button.', optional=True,
-        hold_only=True))
-    response_timeout: float = field(default=10.0, metadata=_number(
-        'Response timeout', 'For how long to wait for the response before the call is considered '
-        'failed. Use 0 to wait for the response indefinitely.', ' s', 1, (0.0, 600.0), 0.5))
-    call_attempts: int = field(default=1, metadata=_number(
-        'Call attempts', 'How many times to send the request counting the first try. The request '
-        'is sent again until the service accepts it or the attempts are used up, which suits a '
-        'service that is only restarting.', '', 0, (1, 10), 1))
-    invert_value: bool = field(default=False, metadata=_flag(
-        'Invert value', 'Send the opposite value, so false while the button is held and true once '
-        'it is released.', hold_only=True))
+    button_text: str = TextField(  # type: ignore[bad-assignment]
+        'Button', 'Button text', 'What the button says. The text is made as large as the button is.',
+        SEC_APPEARANCE)
+    button_color: Color | None = OptionalColorField(  # type: ignore[bad-assignment]
+        None, 'Button color', 'The color the button is painted with. Leave it unset to use the standard look of a '
+        'Qt button, and set it fully transparent to only show the frame and the text.', SEC_APPEARANCE,
+        clear_tip=BUTTON_CLEAR_TIP)
+    text_color: Color | None = OptionalColorField(  # type: ignore[bad-assignment]
+        None, 'Text color', 'The color of the text on the button. Leave it unset to use the color that fits the '
+        'color of the button best.', SEC_APPEARANCE)
+
+
+@dataclass
+class ServiceButtonSettings(ButtonSettings):
+    """
+    The service a button calls, the text it shows and the colors it is painted with.
+
+    These are all the settings of a button connected to a service.
+    """
+
+    service_name: str = TextField(  # type: ignore[bad-assignment]
+        '', 'Service name', 'The service the button calls when it is used.', SEC_SERVICE, allow_empty=False)
+    button_text: str = TextField(  # type: ignore[bad-assignment]
+        'Button', 'Button text', 'What the button says. The text is made as large as the button is.',
+        SEC_APPEARANCE)
+    button_color: Color | None = OptionalColorField(  # type: ignore[bad-assignment]
+        None, 'Button color', 'The color the button is painted with. Leave it unset to use the standard look of a '
+        'Qt button, and set it fully transparent to only show the frame and the text.', SEC_APPEARANCE,
+        clear_tip=BUTTON_CLEAR_TIP)
+    text_color: Color | None = OptionalColorField(  # type: ignore[bad-assignment]
+        None, 'Text color', 'The color of the text on the button. Leave it unset to use the color that fits the '
+        'color of the button best.', SEC_APPEARANCE)
+    error_color: Color = RequiredColorField(  # type: ignore[bad-assignment]
+        ERROR_COLOR, 'Error color', 'The color the button turns when the service refuses the request or does not '
+        'answer at all. A failure has to stay visible, so this color cannot be taken away.', SEC_APPEARANCE)
+
+    response_timeout: float = FloatField(  # type: ignore[bad-assignment]
+        10.0, 'Response timeout', 'How long to wait for the service to answer before the call is considered lost. '
+        'Use 0 to wait for the response indefinitely.', SEC_BEHAVIOR,
+        limits=(0.0, 600.0), step=0.5, decimals=1, suffix=' s')
+    call_attempts: int = IntField(  # type: ignore[bad-assignment]
+        1, 'Call attempts', 'How many times to send the request counting the first try. The request is sent again '
+        'until the service accepts it or the attempts are used up, which suits a service that is only restarting.',
+        SEC_BEHAVIOR, limits=(1, 10), step=1)
+
+
+@dataclass
+class ClickButtonSettings(ServiceButtonSettings):
+    pass
+
+
+@dataclass
+class HoldButtonSettings(ServiceButtonSettings):
+    """
+    What a button that is held asks for on top of what a button that is only clicked asks for.
+
+    A held button does its work twice: once when the operator presses it, and once when they let go
+    of it. That is also the only case when the service is asked to remember something between the two
+    calls, and when the button has a color to show that the service accepted the button is held.
+    """
+
+    active_color: Color | None = OptionalColorField(  # type: ignore[bad-assignment]
+        None, 'Active color', 'The color the button turns once the service accepts that the button is being held. '
+        'Leave it unset to keep the ordinary color of the button.', SEC_APPEARANCE, clear_tip=BUTTON_CLEAR_TIP)
+    active_text_color: Color | None = OptionalColorField(  # type: ignore[bad-assignment]
+        None, 'Active text color', 'The color of the text while the button is active. Leave it unset to keep the '
+        'ordinary color of the text.', SEC_APPEARANCE)
+    invert_value: bool = BoolField(  # type: ignore[bad-assignment]
+        False, 'Send the opposite value', 'Send the value that is opposite to what the button does by default, i.e. '
+        'false while the button is held and true once it is released.', SEC_BEHAVIOR)

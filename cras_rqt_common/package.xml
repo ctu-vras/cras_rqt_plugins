@@ -13,6 +13,9 @@ SPDX-FileCopyrightText: Czech Technical University in Prague
   <author>Martin Pecka</author>
 
   <exec_depend>python_qt_binding</exec_depend>
+  <exec_depend>python3-typing-extensions</exec_depend>
+  <exec_depend>rqt_gui</exec_depend>
+  <exec_depend>rqt_gui_py</exec_depend>
 
   <test_depend>python3-pytest</test_depend>
 

@@ -6,7 +6,7 @@
 from threading import RLock
 from typing import Optional
 
-from cras_rqt_buttons.button_settings import ButtonSettings
+from cras_rqt_buttons.button_settings import ClickButtonSettings
 from python_qt_binding.QtCore import QObject, QTimer, Signal
 from rclpy.clock import Clock
 from rclpy.clock_type import ClockType
@@ -21,7 +21,7 @@ REQUEST, ATTEMPTS, DEADLINE, FUTURE = range(4)
 """what the engine keeps about a request that the service has not accepted yet"""
 
 
-class ButtonEngine(QObject):
+class ButtonEngine[ServiceType: type](QObject):
     """
     Calls a ROS service without ever blocking the caller.
 
@@ -45,12 +45,13 @@ class ButtonEngine(QObject):
     _resend_wanted = Signal()
     """a request waits to be sent again, which a timer of the GUI thread takes care of"""
 
-    def __init__(self, node: Node, service_type, parent: QObject = None):
+    def __init__(self, node: Node, service_type: type[ServiceType], parent: QObject = None):
         super().__init__(parent)
         self._node = node
-        self._logger = node.get_logger()
         self._service_type = service_type
-        self._settings = ButtonSettings()
+        self._logger = node.get_logger()
+        
+        self._settings = ClickButtonSettings()
         # reentrant, because the outcome of a call is reported while the lock is held, and whoever
         # is told about it can ask the engine for something in an answer to that report
         self._service_lock = RLock()
@@ -71,7 +72,7 @@ class ButtonEngine(QObject):
         self._resend_wanted.connect(self._start_retry_timer)
         self._shutting_down = False
 
-    def configure(self, settings: ButtonSettings) -> None:
+    def configure(self, settings: ClickButtonSettings) -> None:
         """Point the engine at the configured service and start watching whether it is there."""
         self._settings = settings
         service_name = settings.service_name.strip()
@@ -155,14 +156,12 @@ class ButtonEngine(QObject):
             return  # the request was dropped while it was waiting to be sent again
         if self._client is None or not self._client.service_is_ready():
             self._set_available(False)
-            self._attempt_failed(request_id, waiting,
-                                 f'Service {self._service_name} is not available')
+            self._attempt_failed(request_id, waiting, f'Service {self._service_name} is not available')
             return
         try:
             future = self._client.call_async(waiting[REQUEST])
         except Exception as exc:
-            self._attempt_failed(request_id, waiting,
-                                 f'Calling {self._service_name} failed: {exc}')
+            self._attempt_failed(request_id, waiting, f'Calling {self._service_name} failed: {exc}')
             return
         waiting[DEADLINE] = self._deadline()
         waiting[FUTURE] = future
@@ -200,8 +199,7 @@ class ButtonEngine(QObject):
             waiting[DEADLINE], waiting[FUTURE] = None, None
             if request_id not in self._to_retry:
                 self._to_retry.append(request_id)
-            self._logger.warning(f'{message}. Sending the request again, '
-                                 f'{waiting[ATTEMPTS]} attempts left.')
+            self._logger.warning(f'{message}. Sending the request again, {waiting[ATTEMPTS]} attempts left.')
             self._resend_wanted.emit()
             return
         self._pending.pop(request_id, None)
@@ -285,7 +283,7 @@ class ButtonEngine(QObject):
             self._pending.pop(request_id, None)
         self.call_finished.emit(request_id, True, '')
 
-    def _outcome(self, future) -> tuple:
+    def _outcome(self, future) -> tuple[bool, str]:
         """Whether the response the service gave means that the request got through."""
         try:
             response = future.result()

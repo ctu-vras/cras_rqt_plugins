@@ -3,10 +3,10 @@
 
 """A push button that tells a short tap apart from a long press."""
 
-from python_qt_binding.QtCore import QEvent, QObject, Qt, QTimer, Signal
-from python_qt_binding.QtWidgets import QPushButton
+from python_qt_binding.QtCore import QEvent, Qt, QTimer, Signal
+from python_qt_binding.QtWidgets import QPushButton, QWidget
 
-TOUCH_EVENTS = (QEvent.TouchBegin, QEvent.TouchUpdate, QEvent.TouchEnd, QEvent.TouchCancel)
+TOUCH_EVENTS = (QEvent.Type.TouchBegin, QEvent.Type.TouchUpdate, QEvent.Type.TouchEnd, QEvent.Type.TouchCancel)
 
 
 def _event_point(source):
@@ -36,10 +36,10 @@ class HoldButton(QPushButton):
     hold_started = Signal()
     hold_finished = Signal()
 
-    def __init__(self, text: str = '', parent: QObject = None):
+    def __init__(self, text: str = '', parent: QWidget = None):
         super().__init__(text, parent)
-        self.setAttribute(Qt.WA_AcceptTouchEvents, True)
-        self.setFocusPolicy(Qt.NoFocus)
+        self.setAttribute(Qt.WidgetAttribute.WA_AcceptTouchEvents, True)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._hold_delay = 250
         self._pressed = False
         self._holding = False
@@ -51,13 +51,17 @@ class HoldButton(QPushButton):
         """Set how long the button has to be pressed to be considered held."""
         self._hold_delay = max(0, int(msec))
 
+    def hold_delay(self) -> int:
+        """How long the button has to be pressed to be considered held, in milliseconds."""
+        return self._hold_delay
+
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self._begin_press()
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             point = _event_point(event)
             self._end_press(point is None or self.rect().contains(point))
         super().mouseReleaseEvent(event)
@@ -68,13 +72,13 @@ class HoldButton(QPushButton):
             return
         point = _event_point(event.lastPoint()) if hasattr(event, 'lastPoint') else None
         inside = point is None or self.rect().contains(point)
-        if event.type() == QEvent.TouchBegin:
+        if event.type() == QEvent.Type.TouchBegin:
             self._begin_press()
-        elif event.type() == QEvent.TouchUpdate:
+        elif event.type() == QEvent.Type.TouchUpdate:
             if not inside:
                 self._end_press(False)
         else:
-            self._end_press(inside and event.type() == QEvent.TouchEnd)
+            self._end_press(inside and event.type() == QEvent.Type.TouchEnd)
         event.accept()
 
     def _begin_press(self) -> None:

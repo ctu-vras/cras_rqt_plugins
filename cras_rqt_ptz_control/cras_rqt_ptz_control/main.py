@@ -3,16 +3,14 @@
 
 """Standalone launcher of the PTZ control plugin."""
 
-import sys
-
-from rqt_gui.main import Main
-
 
 def main():
-    """Start RQt with the PTZ control plugin only."""
+    import sys
+
+    from cras_rqt_ptz_control.ptz_control_settings import PtzControlSettings
+    from rqt_gui.main import Main
+
     main = Main()
-    sys.exit(main.main(sys.argv, standalone='cras_rqt_ptz_control.ptz_control.PtzControl'))
-
-
-if __name__ == '__main__':
-    main()
+    sys.exit(main.main(
+        sys.argv, standalone='cras_rqt_ptz_control/PtzControl',
+        plugin_argument_provider=PtzControlSettings.add_arguments))

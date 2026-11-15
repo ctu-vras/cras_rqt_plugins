@@ -14,7 +14,7 @@ BUTTONS = (
          color='#2e7d32', text_color='#ffffff'),
     dict(executable='trigger_button', service='home', text='Home',
          color='#4a90d9', text_color='#ffffff'),
-    dict(executable='push_button', service='speak', text='Speak',
+    dict(executable='set_bool_button', service='speak', text='Speak',
          color='#f9a825', text_color='#000000'),
     dict(executable='empty_button', service='stop', text='Stop',
          color='#c62828', text_color='#ffffff'),

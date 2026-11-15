@@ -32,7 +32,7 @@ setup(
         'console_scripts': [
             'empty_button = cras_rqt_buttons.empty_button:main',
             'trigger_button = cras_rqt_buttons.trigger_button:main',
-            'push_button = cras_rqt_buttons.push_button:main',
+            'set_bool_button = cras_rqt_buttons.set_bool_button:main',
         ],
     },
 )

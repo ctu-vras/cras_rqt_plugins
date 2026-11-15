@@ -28,5 +28,4 @@ calling `ros2 run cras_rqt_ptz_control cras_rqt_ptz_control`. The configuration,
 dock title bar or in the widget corner, offers the two command topics, the zoom topic, the centering service and
 the tilt and zoom steps, rates, command rate and the delay below which a press still counts as a tap; it is
 stored in the standard RQt settings and restored next time (when RQt does not offer a freshly built plugin,
-let it scan the plugins again by `rqt_gui --force-discover`). To build the package, run
-`./build.sh --packages-select cras_rqt_ptz_control` in the root of this workspace.
+let it scan the plugins again by `rqt_gui --force-discover`).

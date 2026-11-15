@@ -3,24 +3,32 @@
 
 """RQt plugin with a button calling a std_srvs/Trigger service."""
 
-from cras_rqt_buttons.button_widget import TriggerButtonWidget
-from cras_rqt_buttons.service_button_plugin import ServiceButtonPlugin, run_standalone
+from cras_rqt_buttons.click_button_widget import TriggerButtonWidget
+from cras_rqt_common.settings_plugin import SettingsPlugin
 
 
-class CrasRqtTriggerButton(ServiceButtonPlugin):
+class CrasRqtTriggerButton(SettingsPlugin[TriggerButtonWidget]):
     """
     An RQt plugin with a large button calling a std_srvs/Trigger service.
 
-    The button is meant for tasks such as starting or aborting a robot mission: it can be hit with
-    a finger, it only becomes enabled once the service is there to answer, and it turns red when
-    the service refuses the request or does not answer at all. It has no value to send, so the
-    settings that tell what value to send do not apply to it.
+    The button is meant for tasks such as starting or aborting a robot mission: it can be hit with a
+    finger, it only becomes enabled once the service is there to answer, and it turns red when the
+    service refuses the request or does not answer at all. The text the service returns with its
+    response is not shown anywhere, only whether the response says the task worked.
     """
 
-    WIDGET_TYPE = TriggerButtonWidget
-    PLUGIN_NAME = 'TriggerButton'
+    def __init__(self, context, plugin_name: str = 'TriggerButton'):
+        super().__init__(context, plugin_name)
 
 
 def main():
     """Start the plugin in a window of its own."""
-    run_standalone('cras_rqt_buttons/TriggerButton')
+    import sys
+
+    from cras_rqt_buttons.button_settings import ClickButtonSettings
+    from rqt_gui.main import Main
+
+    main = Main()
+    sys.exit(main.main(
+        sys.argv, standalone='cras_rqt_buttons/TriggerButton',
+        plugin_argument_provider=ClickButtonSettings.add_arguments))

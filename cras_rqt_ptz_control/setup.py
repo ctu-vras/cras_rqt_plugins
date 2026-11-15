@@ -20,7 +20,6 @@ setup(
     maintainer='Martin Pecka',
     maintainer_email='peckama2@fel.cvut.cz',
     description='RQt plugin with a touch-friendly D-pad to control a PTZ gimbal-camera',
-    # temporary placeholder until tests are added (without this, colcon test fails when no tests are present)
     extras_require={
         'test': [
             'pytest',

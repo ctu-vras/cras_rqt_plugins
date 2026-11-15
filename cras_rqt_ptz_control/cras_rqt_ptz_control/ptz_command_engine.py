@@ -65,7 +65,7 @@ class PtzCommandEngine(QObject):
         self._center_service = None
         self._center_pending = False
         self._timer = QTimer(self)
-        self._timer.setTimerType(Qt.PreciseTimer)
+        self._timer.setTimerType(Qt.TimerType.PreciseTimer)
         self._timer.timeout.connect(self._publish_held_velocity)
         self._zoom_sub_timer = node.create_timer(0.25, self._zoom_sub_discovery_cb)
 

@@ -6,17 +6,16 @@
 from dataclasses import dataclass
 from typing import Any
 
-from cras_rqt_text.text_settings import LEFT, TextSettings, TOP, STANDARD
+from cras_rqt_common.color import Color
+from cras_rqt_text.text_settings import LEFT, TextSettings, TOP
 
 # The biggest size an OverlayText message can ask the widget for, in pixels.
 MAX_PREFERRED_SIZE = 4096
 
 
-def _argb(color) -> str:
+def message_color(color) -> Color:
     """Count the channels of a std_msgs/ColorRGBA in 0 to 255 instead of 0 to 1."""
-    nums = tuple(max(0, min(255, int(round(channel * 255))))
-                 for channel in (color.r, color.g, color.b, color.a))
-    return f'#{nums[3]:02x}{nums[0]:02x}{nums[1]:02x}{nums[2]:02x}'
+    return Color(*[max(0, min(255, int(round(channel * 255)))) for channel in (color.r, color.g, color.b, color.a)])
 
 
 @dataclass
@@ -29,8 +28,8 @@ class TextFrame:
     """
 
     text: str = ''
-    color: str = STANDARD
-    background: str = STANDARD
+    color: Color | None = None
+    background: Color | None = None
     size_pt: float = 12.0
     font: str = ''
     horizontal_alignment: int = LEFT
@@ -84,9 +83,9 @@ def build_frame(settings: TextSettings, message: Any, height: int) -> TextFrame 
         if message.text_size > 0:
             frame.size_pt = message.text_size * scale
         frame.font = message.font
-        frame.color = _argb(message.fg_color)
+        frame.color = message_color(message.fg_color)
     if settings.take_background_from_message:
-        frame.background = _argb(message.bg_color)
+        frame.background = message_color(message.bg_color)
     if settings.take_layout_from_message:
         frame.horizontal_alignment = message.horizontal_alignment
         frame.vertical_alignment = message.vertical_alignment

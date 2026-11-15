@@ -3,19 +3,19 @@
 
 """The GUI of the text plugin."""
 
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
+from cras_rqt_common.settings_widget import SettingsWidget
 from cras_rqt_text.text_engine import TextEngine
 from cras_rqt_text.text_frame import build_frame
 from cras_rqt_text.text_html import build_html
-from cras_rqt_text.text_settings import BOTTOM, RIGHT, TextSettings, TOP
-from cras_rqt_text.text_settings_dialog import TextSettingsDialog
+from cras_rqt_text.text_settings import BOTTOM, RIGHT, TextSettings, TextSettingsDialog, TOP
 from python_qt_binding.QtCore import QSize
-from python_qt_binding.QtGui import QColor, QPainter, QPalette, QTextDocument
-from python_qt_binding.QtWidgets import QDialog, QSizePolicy, QWidget
+from python_qt_binding.QtGui import QPainter, QPalette, QTextDocument
+from python_qt_binding.QtWidgets import QSizePolicy, QWidget
 
 
-class TextWidget(QWidget):
+class TextWidget(SettingsWidget[TextSettings, TextSettingsDialog]):
     """
     A widget showing a text coming from a ROS topic.
 
@@ -31,11 +31,9 @@ class TextWidget(QWidget):
     DEFAULT_HEIGHT = 120
 
     def __init__(self, node, parent: QWidget = None):
-        super().__init__(parent)
+        super().__init__(parent, 'Text')
         self.setObjectName('cras_rqt_text__Text')
-        self.setWindowTitle('Text')
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self._settings = TextSettings()
         self._message = None
         self._preferred_size = None
         self._cached_document = None
@@ -43,23 +41,6 @@ class TextWidget(QWidget):
         self._engine = TextEngine(node, self)
         self._engine.string_text.connect(self._show)
         self._engine.overlay_text.connect(self._show)
-
-    def open_configuration(self) -> None:
-        """Let the user change the topic, the message type and the text appearance."""
-        dialog = TextSettingsDialog(self._settings, self)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-        self._settings = dialog.settings()
-        self._apply_settings()
-
-    def save_settings(self, plugin_settings, instance_settings) -> None:
-        """Store the settings in the rqt settings."""
-        self._settings.save(instance_settings)
-
-    def restore_settings(self, plugin_settings, instance_settings) -> None:
-        """Load the settings from the rqt settings and use them right away."""
-        self._settings = TextSettings.load(instance_settings)
-        self._apply_settings()
 
     def shutdown(self) -> None:
         """Release the ROS interfaces."""
@@ -77,7 +58,8 @@ class TextWidget(QWidget):
         if frame is None:
             painter.fillRect(self.rect(), self.palette().color(QPalette.ColorRole.Window))
             return
-        background = QColor(frame.background) if frame.background else self.palette().color(QPalette.ColorRole.Window)
+        background = frame.background.q() if frame.background is not None else self.palette().color(
+            QPalette.ColorRole.Window)
         if background.alpha() < 255:
             # Paint the plain widget background first, so that a translucent background does not
             # leave anything of the text shown before behind.
@@ -94,8 +76,9 @@ class TextWidget(QWidget):
         self._message = message
         self._redraw()
 
-    def _apply_settings(self) -> None:
-        self._engine.configure(self._settings)
+    def apply_settings(self, settings: TextSettings) -> None:
+        super().apply_settings(settings)
+        self._engine.configure(settings)
         self._redraw()
 
     def _redraw(self) -> None:
