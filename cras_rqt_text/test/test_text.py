@@ -15,8 +15,7 @@ from cras_rqt_text.text_frame import build_frame, MAX_PREFERRED_SIZE, scaling_fa
 from cras_rqt_text.text_frame import TextFrame  # noqa: E402
 from cras_rqt_text.text_html import build_html, markup  # noqa: E402
 from cras_rqt_text.text_settings import (BOTTOM, CENTER, LEFT,  # noqa: E402
-                                         OVERLAY_TYPE, RIGHT, STRING_TYPE, TextSettings, TOP)
-from cras_rqt_text.text_settings_dialog import TextSettingsDialog  # noqa: E402
+                                         OVERLAY_TYPE, RIGHT, STRING_TYPE, TextSettings, TextSettingsDialog, TOP)
 from cras_rqt_text.text_widget import TextWidget  # noqa: E402
 import pytest  # noqa: E402
 from python_qt_binding.QtGui import QColor, QImage, QPalette, QTextDocument  # noqa: E402

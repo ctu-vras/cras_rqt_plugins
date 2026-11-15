@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Czech Technical University in Prague
 
 """The settings a plugin can be told to change, each knowing how to handle its one setting."""
+
 import math
 import sys
 from argparse import ArgumentParser
@@ -99,8 +100,12 @@ class SettingsField(Field[ValueType], Generic[ValueType, WidgetType, SettingsTyp
     """
 
     def __init__(self, default: ValueType, label: str, description: str, section: str, **kwargs: Any) -> None:
+        # Python 3.14 added constructor arg doc
+        extra = {}
+        if sys.version_info >= (3, 14):
+            extra['doc'] = description
         super().__init__(default=default, default_factory=MISSING, init=True, repr=True,
-                         hash=True, compare=True, metadata=dict(kwargs), kw_only=False)
+                         hash=True, compare=True, metadata=dict(kwargs), kw_only=False, **extra)
         self.label = label
         self.description = description
         self.section = section
