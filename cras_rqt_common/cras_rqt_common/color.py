@@ -67,7 +67,7 @@ class Color:
         return Color(self.q().darker(factor))
 
     def name(self) -> str:
-        return self.q().name()
+        return self.q().name(QColor.NameFormat.HexArgb if self.a < 255 else QColor.NameFormat.HexRgb)
 
     def css(self) -> str:
         """The color in a form understood by a Qt style sheet."""
