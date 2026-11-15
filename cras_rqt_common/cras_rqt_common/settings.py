@@ -9,6 +9,7 @@ from typing import Any, Callable, Sequence, Self
 
 from cras_rqt_common.settings_fields import SettingsField
 
+
 @dataclass
 class SettingsBase:
     """
@@ -35,7 +36,7 @@ class SettingsBase:
 
     def save(self, proxy) -> None:
         """Store these settings through the rqt settings proxy.
-        
+
         :param proxy: The settings proxy to use.
         """
         for item in fields(self):
@@ -47,7 +48,7 @@ class SettingsBase:
     @classmethod
     def load(cls, proxy, defaults=None):
         """Read settings from the rqt settings proxy, falling back to the given ones.
-        
+
         :param proxy: The settings proxy to use.
         :param defaults: The default settings to use if the proxy does not have a value for a setting.
         """

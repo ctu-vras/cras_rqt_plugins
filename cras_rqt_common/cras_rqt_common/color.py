@@ -19,7 +19,7 @@ class Color:
     g: int
     b: int
     a: int = 255
-    
+
     def __init__(self, r: 'int | str | QColor | Color', g: int = None, b: int = None, a: int = 255):
         if isinstance(r, Color):
             self.__dict__['r'] = r.r
@@ -41,31 +41,31 @@ class Color:
             self.__dict__['g'] = g
             self.__dict__['b'] = b
             self.__dict__['a'] = a
-    
+
     def red(self) -> int:
         return self.r
-    
+
     def green(self) -> int:
         return self.g
-    
+
     def blue(self) -> int:
         return self.b
-    
+
     def alpha(self) -> int:
         return self.a
-    
+
     def q(self) -> QColor:
         return QColor(self.r, self.g, self.b, self.a)
-    
+
     def lightness(self) -> int:
         return self.q().lightness()
-    
+
     def lighter(self, factor: int) -> 'Color':
         return Color(self.q().lighter(factor))
-    
+
     def darker(self, factor: int) -> 'Color':
         return Color(self.q().darker(factor))
-    
+
     def name(self) -> str:
         return self.q().name()
 
@@ -74,14 +74,14 @@ class Color:
         if self.a == 255:
             return self.name()
         return f'rgba({self.r}, {self.g}, {self.b}, {self.a})'
-    
+
 
 def to_optional_color(value: QColor | Color | ColorSettingsType | None) -> Color | None:
     """
     Interpret a color value that may also mean no color.
 
     An empty or invalid value gives ``None`` rather than an arbitrary color.
-    
+
     :param value: Color value to interpret.
     :return: Valid color or ``None``.
     """
@@ -117,7 +117,7 @@ def to_optional_color(value: QColor | Color | ColorSettingsType | None) -> Color
 
 def to_color(value: QColor | ColorSettingsType | None, default: Color | None) -> Color:
     """Return a valid color, falling back to ``default`` and then gray.
-    
+
     :param value: Color value to interpret.
     :param default: Default color value.
     :return: Valid color.

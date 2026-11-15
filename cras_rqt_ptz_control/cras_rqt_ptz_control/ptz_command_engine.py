@@ -10,8 +10,7 @@ from cras_rqt_ptz_control.ptz_control_settings import PtzControlSettings
 from geometry_msgs.msg import TwistStamped
 from python_qt_binding.QtCore import QObject, Qt, QTimer, Signal
 from rclpy.node import Node
-from rclpy.qos import DurabilityPolicy, qos_profile_system_default, QoSProfile, ReliabilityPolicy, \
-    qos_profile_sensor_data, QoSHistoryPolicy
+from rclpy.qos import QoSHistoryPolicy, QoSProfile, qos_profile_system_default
 from rosidl_runtime_py.utilities import get_message
 from std_srvs.srv import Trigger
 

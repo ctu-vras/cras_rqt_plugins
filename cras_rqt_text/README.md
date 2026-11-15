@@ -34,9 +34,11 @@ they do not vanish.
 | `take_layout_from_message`       | whether an OverlayText message may pick its own alignment, distances and size             |
 
 Both colors default to the colors any other rqt widget has, taken from its palette, so a freshly opened plugin looks
-like the rest of rqt and follows its light or dark theme. The configuration dialog shows that color on the button and
-offers a *Standard* button to get back to it. An explicit color can be written as `#ff000080`
-(the first two digits being the alpha). Empty `topic` is a valid setting: the plugin then just shows the default text.
+like the rest of rqt and follows its light or dark theme. The configuration dialog paints the color onto the button
+that sets it, and while the setting has no color, the button says *Standard*; the small button next to it takes an
+explicit color away again. An explicit color can be written as `#ff000080`
+(the first two digits being the alpha, the way Qt reads a color, not the way CSS writes one), and a color that cannot
+be understood is no color at all. Empty `topic` is a valid setting: the plugin then just shows the default text.
 
 Until the first message arrives, the widget shows the default text with the configured appearance, so that a freshly
 opened plugin does not look broken. An OverlayText message brings its own appearance and position along, and the
@@ -65,4 +67,15 @@ ros2 topic pub --once /overlay_text std_msgs/msg/String "{data: 'battery <font c
 ```
 
 The settings live in the perspective RQt stores, and are changed in the RQt configuration dialog, opened by the gear
-button in the dock of the plugin. Several instances can be open at once, each with its own topic and appearance.
+button in the dock of the plugin. They are also options of the standalone program, spelled after them, and what is
+given there wins over the perspective:
+
+```
+ros2 run cras_rqt_text cras_rqt_text --topic /mission/status --message-type std_msgs/msg/String --text-color '#00695c'
+```
+
+Several instances can be open at once, each with its own topic, title and appearance.
+
+The settings, their dialog, the widget and the plugin around it are shared with the other plugins of this repository
+and live in [cras_rqt_common](../cras_rqt_common/README.md); this package only says what the widget listens to and
+how it paints what it hears.

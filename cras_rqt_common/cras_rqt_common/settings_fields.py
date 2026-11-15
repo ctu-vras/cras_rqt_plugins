@@ -13,8 +13,7 @@ from typing_extensions import TypeVar
 
 from cras_rqt_common.color import to_color, to_optional_color, ColorSettingsType, Color
 from cras_rqt_common.color_widgets import CLEAR_TIP, ColorButton, ColorEditor
-from python_qt_binding.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QLineEdit, QSpinBox,
-                                         QWidget)
+from python_qt_binding.QtWidgets import QCheckBox, QComboBox, QDoubleSpinBox, QLineEdit, QSpinBox, QWidget
 
 ValueType = TypeVar('ValueType')
 WidgetType = TypeVar('WidgetType', bound=QWidget)
@@ -143,7 +142,7 @@ class SettingsField(Field[ValueType], Generic[ValueType, WidgetType, SettingsTyp
     def _arg_parser_options_names(self) -> list:
         # rqt's own arguments use dashes, so we accept both forms to avoid surprises
         return [f'--{self.name.replace("_", "-")}', f'--{self.name}']
-    
+
 
 class TextField(SettingsField[str, QLineEdit]):
     """
@@ -360,7 +359,7 @@ class OptionalColorField(SettingsField[Color | None, ColorEditor, ColorSettingsT
 
     def load(self, value: ColorSettingsType | None, default: Color | None) -> Color | None:
         return to_optional_color(value)
-    
+
     def save(self, value: Color | None) -> ColorSettingsType | None:
         return value.name() if value is not None else None
 

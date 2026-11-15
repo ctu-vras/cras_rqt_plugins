@@ -12,7 +12,7 @@ from python_qt_binding.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, 
 MINIMUM_WIDTH = 420  # px, so that the labels and the tool tips have some room
 
 
-class SettingsDialog[SettingsType](QDialog):
+class SettingsDialog[SettingsType: SettingsBase](QDialog):
     """
     A dialog asking for the settings of one settings class.
 

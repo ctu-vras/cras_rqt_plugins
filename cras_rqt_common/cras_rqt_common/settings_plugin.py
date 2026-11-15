@@ -3,9 +3,7 @@
 
 """The RQt plugin around a widget that can be configured."""
 
-import sys
 from dataclasses import replace
-from typing import get_args, get_origin
 
 from cras_rqt_common.settings_widget import SettingsWidget
 from cras_rqt_common.typing import TypeVar, resolve_subclass_args
@@ -21,13 +19,13 @@ class SettingsPlugin[WidgetType: SettingsWidget](Plugin):
     standard RQt configuration dialog. The settings can also be given on the command line, as
     options named after them, and what is given there wins.
 
-    The subclass only says which :attr:`WIDGET_TYPE` to show and under which :attr:`PLUGIN_NAME` RQt
-    knows it.
+    The subclass only says which widget to show, as the ``WidgetType`` parameter of this class, and
+    under which name RQt knows it, by passing it to this constructor.
     """
-    
+
     # Filled by __init_subclass__
     WIDGET_TYPE: type[WidgetType]
-    
+
     def __init__(self, context, plugin_name: str = 'Plugin'):
         """Create the widget, apply what the command line asked for, and add it to the RQt window."""
         super().__init__(context)
@@ -48,7 +46,7 @@ class SettingsPlugin[WidgetType: SettingsWidget](Plugin):
         # This magic copies the type variables into class variables so that we can instantiate the types
         super().__init_subclass__()
         widget_type = resolve_subclass_args(cls, SettingsPlugin)
-        
+
         if not isinstance(widget_type, TypeVar):
             cls.WIDGET_TYPE = widget_type[0]
 

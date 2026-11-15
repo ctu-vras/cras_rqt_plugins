@@ -16,6 +16,10 @@ or hiding its dock still sends the request that belongs to the release.
 The three buttons are also standalone programs, `trigger_button`, `empty_button` and `set_bool_button`, which open a
 window of their own and take the settings below as command line options.
 
+What the settings, their dialog, the widget and the plugin around it do is shared with the other plugins of this
+repository and lives in [cras_rqt_common](../cras_rqt_common/README.md); this package only says what a button calls,
+what it says and how it looks.
+
 Nothing waits for a service or for a response. The button is disabled until the configured service is found, and
 it becomes disabled again if the service goes away; the request itself is handed to rclpy asynchronously and the
 answer is reported through a signal, so the GUI never freezes, not even when the service takes half a minute to
@@ -38,11 +42,11 @@ about it.
 
 ## Configuration
 
-Every button takes these settings:
+Every button takes these settings; the three that say *for a button that is held* only `CrasRqtSetBoolButton` has them:
 
 | Setting            | Meaning                                                                              |
 |--------------------|--------------------------------------------------------------------------------------|
-| `service_name`     | the service to call; relative names are resolved by node namespace             |
+| `service_name`     | the service to call, which has to be given; relative names are resolved by namespace |
 | `button_text`      | what the button says, empty text allowed                                             |
 | `button_color`     | the color of the button while it is ready to be pressed, empty for the standard look |
 | `text_color`       | the color of the text on the button, empty for the color the Qt style uses           |
@@ -58,9 +62,11 @@ use. Give `button_color` (and optionally `text_color`) a color and the button is
 border, a pressed shade and a faded-out look while it is disabled; take the color away again and the standard look
 comes back. `error_color` always has a color, because a failed call is meant to be impossible to miss. A button that
 is waiting for an answer is always darkened, and a button without a color of its own is darkened from the color the
-Qt style paints it with. The colors are stored as the color objects of `cras_rqt_common.color.Color`, and are accepted
-in anything `QColor` understands, so `red`, `#c62828` and `#c6282880` all work. The settings can be changed in three
-ways, and what is given on the command line wins over what was stored before:
+Qt style paints it with. The colors are `cras_rqt_common.color.Color` values, stored by their name, and they are
+accepted in anything `QColor` understands, so `red`, `#c62828` and `#80c62828` all work (an eight-digit color has the
+alpha first, the way Qt reads it, not the way a CSS document writes it); a color that cannot be parsed is no color at
+all. The settings can be changed in three ways, and what is given on the command line wins over what was stored
+before:
 
 - the RQt configuration dialog, opened by *Configure* in the plugin dock,
 - the settings RQt stores with the perspective, so the buttons come back as they were left,

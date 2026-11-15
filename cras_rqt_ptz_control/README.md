@@ -29,3 +29,13 @@ dock title bar or in the widget corner, offers the two command topics, the zoom 
 the tilt and zoom steps, rates, command rate and the delay below which a press still counts as a tap; it is
 stored in the standard RQt settings and restored next time (when RQt does not offer a freshly built plugin,
 let it scan the plugins again by `rqt_gui --force-discover`).
+
+The same settings are options of the standalone program, spelled after them, so a gimbal can be set up without ever
+opening the dialog:
+
+```
+ros2 run cras_rqt_ptz_control cras_rqt_ptz_control --velocity-topic /gimbal/cmd_vel --angle-step-deg 5
+```
+
+The settings, their dialog, the widget and the plugin around it are shared with the other plugins of this repository
+and live in [cras_rqt_common](../cras_rqt_common/README.md); this package only says what the D-pad sends and when.
