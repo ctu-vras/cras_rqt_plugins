@@ -14,6 +14,10 @@ issued asynchronously, so the GUI stays responsive and the motion commands keep 
 shows no gimbal pose; the only feedback is the zoom level, read from a topic of `std_msgs/Float32`, which stays
 blank for as long as no values are available.
 
+![PTZ control widget](./doc/widget.png)
+
+![Settings Dialog](./doc/settings.png)
+
 Commands are sent as `geometry_msgs/TwistStamped` messages where `twist.angular.y` is the pitch,
 `twist.angular.z` the yaw (both in radians, or radians per second, respectively) and `twist.linear.x` the zoom
 change (zoom levels, or zoom levels per second). The defaults point at

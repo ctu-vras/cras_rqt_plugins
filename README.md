@@ -22,6 +22,11 @@ also be started as a program of its own, e.g. `ros2 run cras_rqt_buttons empty_b
 dialog of the plugin, saved with the RQt perspective, and can be given on the command line as options named after
 them, which then win over what was saved before.
 
+![Trigger button](./cras_rqt_buttons/doc/trigger_button.png)
+![SetBool button](./cras_rqt_buttons/doc/set_bool_button.png)
+![PTZ control widget](./cras_rqt_ptz_control/doc/widget.png)
+![Text widget](./cras_rqt_text/doc/widget.png)
+
 ## Building
 
 Source your ROS 2 distribution and call

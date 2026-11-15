@@ -13,6 +13,11 @@ RQt buttons that call a ROS service.
 `false` when it is released (with `invert_value` it sends the other way round). A button that is released by closing
 or hiding its dock still sends the request that belongs to the release.
 
+![Trigger button](./doc/trigger_button.png)
+![SetBool button](./doc/set_bool_button.png)
+
+![Settings Dialog](./doc/settings.png)
+
 The three buttons are also standalone programs, `trigger_button`, `empty_button` and `set_bool_button`, which open a
 window of their own and take the settings below as command line options.
 

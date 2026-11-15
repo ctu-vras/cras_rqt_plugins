@@ -15,6 +15,10 @@ paints in RViz, so Qt's rich text subset applies here too: consecutive spaces co
 not fit the widget, and only angle brackets that cannot start a tag, such as the one in `3 < 5`, are escaped so that
 they do not vanish.
 
+![Text widget](./doc/widget.png)
+
+![Settings Dialog](./doc/settings.png)
+
 ## Configuration
 
 | Setting                          | Meaning                                                                                |
